@@ -8,6 +8,7 @@ import { Config } from "@/config/config"
 import { MCP } from "../mcp"
 import { Skill } from "../skill"
 import PROMPT_INITIALIZE from "./template/initialize.txt"
+import PROMPT_ORIENT from "./template/orient.txt"
 import PROMPT_REVIEW from "./template/review.txt"
 import { LegacyEvent } from "@opencode-ai/schema/legacy-event"
 
@@ -45,6 +46,7 @@ export function hints(template: string) {
 
 export const Default = {
   INIT: "init",
+  ORIENT: "orient",
   REVIEW: "review",
 } as const
 
@@ -75,6 +77,18 @@ const layer = Layer.effect(
           return PROMPT_INITIALIZE.replace("${path}", ctx.worktree)
         },
         hints: hints(PROMPT_INITIALIZE),
+      }
+      // Runs under the `plan` agent, whose permissions deny every edit tool, so
+      // orientation can never create or modify files in the user's project.
+      commands[Default.ORIENT] = {
+        name: Default.ORIENT,
+        description: "summarize what this project is and does (read-only)",
+        source: "command",
+        agent: "plan",
+        get template() {
+          return PROMPT_ORIENT.replace("${path}", ctx.worktree)
+        },
+        hints: hints(PROMPT_ORIENT),
       }
       commands[Default.REVIEW] = {
         name: Default.REVIEW,
