@@ -1783,6 +1783,73 @@ it.instance(
   10_000,
 )
 
+noLLMServer.instance(
+  "orient is a built-in read-only command",
+  () =>
+    Effect.gen(function* () {
+      const commands = yield* Command.Service
+      const list = yield* commands.list()
+      expect(list.map((c) => c.name)).toContain(Command.Default.ORIENT)
+
+      const orient = yield* commands.get(Command.Default.ORIENT)
+      expect(orient?.agent).toBe("plan")
+      expect(orient?.description).toBeTruthy()
+      expect(orient?.subtask).toBeUndefined()
+      const template = yield* Effect.promise(async () => orient!.template)
+      expect(template).toContain("3 to 5 sentence")
+      expect(template).toContain("README")
+      expect(template).not.toContain("${path}")
+    }),
+  { config: cfg },
+)
+
+it.instance("orient command prompts the plan agent with the worktree and README instructions", () =>
+  Effect.gen(function* () {
+    const { dir, llm } = yield* useServerConfig(providerCfg)
+    yield* writeText(path.join(dir, "README.md"), "# Orbit\n\nA tool for orienting students.\n")
+    const { prompt, sessions, chat } = yield* boot()
+    yield* llm.text("Orbit is a tool for orienting students. It is a CLI. Start with README.md.")
+
+    const result = yield* prompt.command({
+      sessionID: chat.id,
+      command: Command.Default.ORIENT,
+      arguments: "",
+    })
+
+    expect(result.info.role).toBe("assistant")
+    if (result.info.role === "assistant") expect(result.info.agent).toBe("plan")
+
+    const inputs = yield* llm.inputs
+    const sent = JSON.stringify(inputs.at(-1)?.messages)
+    expect(sent).toContain("3 to 5 sentence")
+    expect(sent).toContain("README")
+    expect(sent).toContain(dir)
+
+    const msgs = yield* sessions.messages({ sessionID: chat.id })
+    const user = msgs.find((item) => item.info.role === "user")
+    expect(user?.info.role === "user" && user.info.agent).toBe("plan")
+
+    expect(yield* llm.calls).toBe(1)
+  }),
+)
+
+it.instance("orient command appends a focus argument to the template", () =>
+  Effect.gen(function* () {
+    const { llm } = yield* useServerConfig(providerCfg)
+    const { prompt, chat } = yield* boot()
+    yield* llm.text("done")
+
+    yield* prompt.command({
+      sessionID: chat.id,
+      command: Command.Default.ORIENT,
+      arguments: "focus on the build system",
+    })
+
+    const inputs = yield* llm.inputs
+    expect(JSON.stringify(inputs.at(-1)?.messages)).toContain("focus on the build system")
+  }),
+)
+
 unix(
   "command ! expansion uses configured shell over env shell",
   () =>
