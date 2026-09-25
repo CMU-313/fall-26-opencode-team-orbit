@@ -1,0 +1,32 @@
+Give the user a quick orientation to the project at `${path}`.
+
+Your only output is a 3 to 5 sentence summary of what this project is and what it does. Write for a student who has never seen this codebase and is about to start working in it.
+
+Optional focus from the user (honor it if present, ignore if blank):
+$ARGUMENTS
+
+## How to investigate
+
+This is a read-only task. Do not create, edit, or delete any files, and do not run commands that change the working tree or the system. Only read files and list directories.
+
+Read in this order and stop as soon as you have enough to write a confident summary:
+1. `README*` at the repository root. This is usually enough on its own.
+2. If there is no README, or it is empty or uninformative, read the root manifest instead: `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `pom.xml`, `build.gradle`, `Gemfile`, `composer.json`, or similar. Use the name, description, scripts, and main dependencies to infer the purpose.
+3. If there is still no clear picture, list the top-level directories and a few key entrypoints (for example `src/`, `app/`, `cmd/`, `lib/`, `main.*`, `index.*`) and infer the purpose from the structure.
+
+Do not read every file. Do not run the build or tests. Skim only what you need to answer "what is this project for?".
+
+## What to cover
+
+In plain language, cover:
+- what the project is and the problem it solves or the value it provides
+- who it is for (end users, developers, a specific platform)
+- the main technology or language and the general shape of the code (for example: a CLI plus a web dashboard, a library, a monorepo of packages)
+- one or two places a newcomer should look first to get oriented
+
+## Writing rules
+
+- Exactly 3 to 5 sentences of prose. No headings, no bullet lists, no code blocks.
+- Name the specific files you relied on inline (for example "based on the README and package.json").
+- State only what you verified from files you read. If the repository has no README and no manifest, say so plainly in the first sentence and base the summary on the directory structure.
+- Do not ask the user questions and do not offer to do anything further.
