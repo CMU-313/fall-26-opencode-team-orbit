@@ -2440,3 +2440,40 @@ noLLMServer.instance(
     }),
   30_000,
 )
+
+it.instance(
+  "/important sends its prompt to the model and returns the reply",
+  () =>
+    Effect.gen(function* () {
+      const { llm } = yield* useServerConfig(providerCfg)
+      const { prompt, chat } = yield* boot()
+      yield* llm.text("Important files: package.json")
+
+      const result = yield* prompt.command({ sessionID: chat.id, command: Command.Default.IMPORTANT, arguments: "" })
+
+      const inputs = yield* llm.inputs
+      expect(JSON.stringify(inputs.at(-1)?.messages)).toContain("Safe to ignore")
+      expect(result.info.role).toBe("assistant")
+      if (result.info.role === "assistant") expect(result.info.agent).toBe("plan")
+      expect(result.parts).toEqual(
+        expect.arrayContaining([expect.objectContaining({ type: "text", text: "Important files: package.json" })]),
+      )
+    }),
+  30_000,
+)
+
+it.instance(
+  "/important returns an error instead of crashing when the model call fails",
+  () =>
+    Effect.gen(function* () {
+      const { llm } = yield* useServerConfig(providerCfg)
+      const { prompt, chat } = yield* boot()
+      yield* llm.error(400, { error: { message: "OpenCode's free tier can only be used from within OpenCode" } })
+
+      const result = yield* prompt.command({ sessionID: chat.id, command: Command.Default.IMPORTANT, arguments: "" })
+
+      expect(result.info.role).toBe("assistant")
+      if (result.info.role === "assistant") expect(result.info.error?.name).toBe("APIError")
+    }),
+  30_000,
+)
