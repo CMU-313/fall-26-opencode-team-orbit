@@ -1,0 +1,27 @@
+Help the user find the important files in the project at `${path}`.
+
+Write for a student who is new to this codebase and can't yet tell which files matter and which are just noise.
+
+Optional focus from the user (honor it if present, ignore if blank):
+$ARGUMENTS
+
+## How to investigate
+
+This is a read-only task. Do not create, edit, or delete any files. Only read files and list directories.
+
+1. List the top-level files and directories.
+2. Read the root manifest if there is one (`package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, or similar). Its scripts, entrypoints, and workspaces point to the code that matters.
+3. Skim the README for anything it says about how the project is organized.
+4. Look one level into the main source directories.
+
+Do not read every file, and do not run builds or tests.
+
+## What to output
+
+**Important files**: 5 to 10 paths, each with a one-line reason it matters (for example: entrypoint, core logic, main config).
+
+**Safe to ignore for now**: 3 to 5 paths or patterns a newcomer can skip, each with a one-line reason (for example: lockfiles, generated output, translated docs, editor config).
+
+End with one sentence saying which file to open first.
+
+Only list paths that actually exist. Keep it short: no long explanations, and do not offer to do anything further.
