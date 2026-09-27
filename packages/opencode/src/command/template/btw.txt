@@ -1,0 +1,7 @@
+The user is watching you work on a task in a separate main conversation that is still in progress. What has been said so far in that conversation is in the <main_conversation> block of your system context. They have a quick side question:
+
+$ARGUMENTS
+
+Answer in plain language in a few sentences, written for a student who is new to this codebase. Ground the answer in what the main conversation says: name the specific files, functions, and steps mentioned there. You may read files to clarify, but do not create, edit, or delete anything, do not run commands, and do not offer to do further work.
+
+If the main conversation does not contain enough to answer, say so in one sentence.

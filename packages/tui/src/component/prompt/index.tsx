@@ -1080,7 +1080,7 @@ export function Prompt(props: PromptProps) {
       const restOfInput = firstLineEnd === -1 ? "" : inputText.slice(firstLineEnd + 1)
       const args = firstLineArgs.join(" ") + (restOfInput ? "\n" + restOfInput : "")
 
-      void sdk.client.session.command({
+      const request = sdk.client.session.command({
         sessionID,
         command: command.slice(1),
         arguments: args,
@@ -1089,6 +1089,23 @@ export function Prompt(props: PromptProps) {
         variant,
         parts: nonTextParts.filter((x) => x.type === "file"),
       })
+
+      if (command === "/btw") {
+        request
+          .then((res) => {
+            const text = (res.data?.parts ?? [])
+              .filter((p) => p.type === "text")
+              .map((p) => p.text)
+              .join("\n")
+              .trim()
+            dialog.replace(() => <DialogAlert title="btw" message={text || "No answer returned."} />)
+          })
+          .catch((err) => {
+            toast.show({ variant: "error", message: `btw failed: ${err}`, duration: 4000 })
+          })
+      } else {
+        void request
+      }
     } else {
       move.startSubmit()
       sdk.client.session
