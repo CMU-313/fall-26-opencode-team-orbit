@@ -787,6 +787,34 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         },
         category: "System",
       },
+      //added plan, ask, and auto mode
+      {
+        name: "agent.set.plan",
+        title: "Switch to Plan mode",
+        category: "Agent",
+        slashName: "plan",
+        run: () => {
+          local.agent.set("plan")
+        },
+      },
+      {
+        name: "agent.set.ask",
+        title: "Switch to Ask mode",
+        category: "Agent",
+        slashName: "ask",
+        run: () => {
+          local.agent.set("ask")
+        },
+      },
+      {
+        name: "agent.set.auto",
+        title: "Switch to Auto mode",
+        category: "Agent",
+        slashName: "auto",
+        run: () => {
+          local.agent.set("auto")
+        },
+      },
       {
         name: "theme.switch_mode",
         title: mode() === "dark" ? "Switch to light mode" : "Switch to dark mode",
