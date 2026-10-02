@@ -749,6 +749,8 @@ it.instance(
       agent: {
         build: { disable: true },
         plan: { disable: true },
+        ask: { disable: true },
+        auto: { disable: true }
       },
     },
   },
