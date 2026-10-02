@@ -80,6 +80,16 @@ const layer = Layer.effect(
         },
         hints: hints(PROMPT_INITIALIZE),
       }
+      commands[Default.IMPORTANT] = {
+        name: Default.IMPORTANT,
+        description: "show the important files in this repo",
+        source: "command",
+        agent: "plan",
+        get template() {
+          return PROMPT_IMPORTANT.replace("${path}", ctx.worktree)
+        },
+        hints: hints(PROMPT_IMPORTANT),
+      }
       commands[Default.ORIENT] = {
         name: Default.ORIENT,
         description: "summarize what this project is and does",
