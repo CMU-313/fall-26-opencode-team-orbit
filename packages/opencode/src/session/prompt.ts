@@ -1427,6 +1427,27 @@ const layer = Layer.effect(
         const error = new NamedError.Unknown({ message: `Agent not found: "${agentName}".${hint}` })
         yield* events.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
         throw error
+      }      
+      if (cmd.name === Command.Default.BTW) {
+        const side = yield* sessions.create({
+          parentID: input.sessionID,
+          title: `btw: ${input.arguments} (@btw subagent)`,
+          agent: agent.name,
+        })
+        const history = yield* MessageV2.filterCompactedEffect(input.sessionID).pipe(
+          Effect.provideService(Database.Service, database),
+        )
+        const transcript = history
+          .slice(-30)
+          .flatMap((m) => m.parts.flatMap((p) => (p.type === "text" && p.text ? [`[${m.info.role}]: ${p.text}`] : [])))
+          .join("\n")
+        return yield* prompt({
+          sessionID: side.id,
+          agent: agent.name,
+          model: taskModel,
+          system: `<main_conversation>\n${transcript}\n</main_conversation>`,
+          parts: [{ type: "text", text: template }],
+        })
       }
 
       const templateParts = yield* resolvePromptParts(template)
