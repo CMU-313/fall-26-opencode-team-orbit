@@ -179,6 +179,66 @@ const layer = Layer.effect(
             mode: "primary",
             native: true,
           },
+          ask: {
+            name: "ask",
+            description: "Ask mode. Read-only agent for answering questions without making changes.",
+            options: {},
+            permission: Permission.merge(
+              defaults,
+              Permission.fromConfig({
+                question: "allow",
+                task: {
+                  general: "deny",
+                },
+                edit: {
+                  "*": "deny",
+                },
+                bash: {
+                  "*": "deny",
+                },
+                patch: {
+                  "*": "deny",
+                },
+                write: {
+                  "*": "deny",
+                },
+              }),
+              user,
+            ),
+            mode: "primary",
+            native: true,
+          },
+
+          auto: {
+            name: "auto",
+            description: "Auto mode. Executes edits and commands without asking for confirmation.",
+            options: {},
+            permission: Permission.merge(
+              defaults,
+              Permission.fromConfig({
+                question: "allow",
+                task: {
+                  general: "allow",
+                },
+                edit: {
+                  "*": "allow",
+                },
+                bash: {
+                  "*": "allow",
+                },
+                patch: {
+                  "*": "allow",
+                },
+                write: {
+                  "*": "allow",
+                },
+              }),
+              user,
+            ),
+            mode: "primary",
+            native: true,
+          },
+
           general: {
             name: "general",
             description: `General-purpose agent for researching complex questions and executing multi-step tasks. Use this agent to execute multiple units of work in parallel.`,
