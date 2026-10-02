@@ -10,6 +10,7 @@ import { Skill } from "../skill"
 import PROMPT_BTW from "./template/btw.txt"
 import PROMPT_IMPORTANT from "./template/important.txt"
 import PROMPT_INITIALIZE from "./template/initialize.txt"
+import PROMPT_ORIENT from "./template/orient.txt"
 import PROMPT_REVIEW from "./template/review.txt"
 import { LegacyEvent } from "@opencode-ai/schema/legacy-event"
 
@@ -49,6 +50,7 @@ export const Default = {
   BTW: "btw",
   IMPORTANT: "important",
   INIT: "init",
+  ORIENT: "orient",
   REVIEW: "review",
 } as const
 
@@ -99,6 +101,15 @@ const layer = Layer.effect(
           return PROMPT_BTW
         },
         hints: hints(PROMPT_BTW),
+      commands[Default.ORIENT] = {
+        name: Default.ORIENT,
+        description: "summarize what this project is and does",
+        source: "command",
+        agent: "plan",
+        get template() {
+          return PROMPT_ORIENT.replace("${path}", ctx.worktree)
+        },
+        hints: hints(PROMPT_ORIENT),
       }
       commands[Default.REVIEW] = {
         name: Default.REVIEW,
