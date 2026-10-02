@@ -9,6 +9,7 @@ import { MCP } from "../mcp"
 import { Skill } from "../skill"
 import PROMPT_IMPORTANT from "./template/important.txt"
 import PROMPT_INITIALIZE from "./template/initialize.txt"
+import PROMPT_ORIENT from "./template/orient.txt"
 import PROMPT_REVIEW from "./template/review.txt"
 import { LegacyEvent } from "@opencode-ai/schema/legacy-event"
 
@@ -47,6 +48,7 @@ export function hints(template: string) {
 export const Default = {
   IMPORTANT: "important",
   INIT: "init",
+  ORIENT: "orient",
   REVIEW: "review",
 } as const
 
@@ -87,6 +89,16 @@ const layer = Layer.effect(
           return PROMPT_IMPORTANT.replace("${path}", ctx.worktree)
         },
         hints: hints(PROMPT_IMPORTANT),
+      }
+      commands[Default.ORIENT] = {
+        name: Default.ORIENT,
+        description: "summarize what this project is and does",
+        source: "command",
+        agent: "plan",
+        get template() {
+          return PROMPT_ORIENT.replace("${path}", ctx.worktree)
+        },
+        hints: hints(PROMPT_ORIENT),
       }
       commands[Default.REVIEW] = {
         name: Default.REVIEW,
