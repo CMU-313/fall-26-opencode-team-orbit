@@ -55,6 +55,8 @@ it.instance("returns default native agents when no config", () =>
     expect(names).toContain("compaction")
     expect(names).toContain("title")
     expect(names).toContain("summary")
+    expect(names).toContain("ask")
+    expect(names).toContain("auto")
   }),
 )
 
@@ -88,6 +90,63 @@ it.instance("plan agent denies the general subagent by default", () =>
     expect(Permission.evaluate("task", "explore", plan!.permission).action).toBe("allow")
     expect(Permission.evaluate("task", "custom", plan!.permission).action).toBe("allow")
   }),
+)
+
+it.instance("ask agent denies the general subagent", () =>
+  Effect.gen(function* () {
+    const ask = yield* load((svc) => svc.get("ask"))
+    expect(ask).toBeDefined()
+    expect(Permission.evaluate("task", "general", ask!.permission).action).toBe("deny")
+  }),
+)
+
+it.instance("auto agent has correct default properties", () =>
+  Effect.gen(function* () {
+    const auto = yield* load((svc) => svc.get("auto"))
+    expect(auto).toBeDefined()
+    expect(auto?.mode).toBe("primary")
+    expect(auto?.native).toBe(true)
+    expect(evalPerm(auto, "edit")).toBe("allow")
+    expect(evalPerm(auto, "bash")).toBe("allow")
+    expect(evalPerm(auto, "write")).toBe("allow")
+    expect(evalPerm(auto, "patch")).toBe("allow")
+  }),
+)
+
+it.instance("auto agent allows the general subagent", () =>
+  Effect.gen(function* () {
+    const auto = yield* load((svc) => svc.get("auto"))
+    expect(auto).toBeDefined()
+    expect(Permission.evaluate("task", "general", auto!.permission).action).toBe("allow")
+  }),
+)
+
+it.instance(
+  "defaultAgent respects default_agent config set to ask",
+  () =>
+    Effect.gen(function* () {
+      const agent = yield* load((svc) => svc.defaultAgent())
+      expect(agent).toBe("ask")
+    }),
+  {
+    config: {
+      default_agent: "ask",
+    },
+  },
+)
+
+it.instance(
+  "defaultAgent respects default_agent config set to auto",
+  () =>
+    Effect.gen(function* () {
+      const agent = yield* load((svc) => svc.defaultAgent())
+      expect(agent).toBe("auto")
+    }),
+  {
+    config: {
+      default_agent: "auto",
+    },
+  },
 )
 
 it.instance(
