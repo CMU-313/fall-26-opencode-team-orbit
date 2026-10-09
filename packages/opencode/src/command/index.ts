@@ -101,6 +101,7 @@ const layer = Layer.effect(
           return PROMPT_BTW
         },
         hints: hints(PROMPT_BTW),
+      }
       commands[Default.ORIENT] = {
         name: Default.ORIENT,
         description: "summarize what this project is and does",
