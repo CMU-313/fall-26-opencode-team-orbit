@@ -7,6 +7,7 @@ import { Effect, Layer, Context, Schema } from "effect"
 import { Config } from "@/config/config"
 import { MCP } from "../mcp"
 import { Skill } from "../skill"
+import PROMPT_BTW from "./template/btw.txt"
 import PROMPT_IMPORTANT from "./template/important.txt"
 import PROMPT_INITIALIZE from "./template/initialize.txt"
 import PROMPT_ORIENT from "./template/orient.txt"
@@ -46,6 +47,7 @@ export function hints(template: string) {
 }
 
 export const Default = {
+  BTW: "btw",
   IMPORTANT: "important",
   INIT: "init",
   ORIENT: "orient",
@@ -89,6 +91,16 @@ const layer = Layer.effect(
           return PROMPT_IMPORTANT.replace("${path}", ctx.worktree)
         },
         hints: hints(PROMPT_IMPORTANT),
+      }
+      commands[Default.BTW] = {
+        name: Default.BTW,
+        description: "ask a quick side question without interrupting the current task",
+        source: "command",
+        agent: "plan",
+        get template() {
+          return PROMPT_BTW
+        },
+        hints: hints(PROMPT_BTW),
       }
       commands[Default.ORIENT] = {
         name: Default.ORIENT,
