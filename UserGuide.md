@@ -67,3 +67,57 @@ Each test maps to an acceptance criterion from issue #7:
 The `/orient` feature consists of two pieces: a registry entry in `packages/opencode/src/command/index.ts` and a prompt template in `packages/opencode/src/command/template/orient.txt`. The registry entry is tested through the real `Command` service against a real test instance, not a mock, so registration, description, agent binding, path substitution, and argument hints are all verified exactly as the TUI sees them. The prompt template is tested for every behavioral guarantee in the acceptance criteria: output length and subject, the README then manifest then directory fallback order, and the read-only rule. The one guarantee the command delegates to existing code, that the `plan` agent denies edits, is already covered by the agent test suite on main.
 
 What is not covered by automated tests is the quality of the model's actual summary, because that depends on a live provider call and is non-deterministic. That is covered by the manual scenarios in the user test table above. The original "clear error message when the model call fails" criterion is satisfied by opencode's existing provider error handling in the TUI rather than by command-specific code, which is why there is no custom error path to test here.
+
+
+
+
+# `toggle-slash-command` — summarize what a project is and does
+
+**Owner:** Vicky Yan (issue [#6](https://github.com/CMU-313/fall-26-opencode-team-orbit/issues/6), PR [#12](https://github.com/CMU-313/fall-26-opencode-team-orbit/pull/17))
+
+### What it does
+
+The issue consisted of a desire for the student to interact with the agent in different ways, including different methods to work on a task (plan, a hands-off approach; ask, where they only answer your questions; and auto, where the agent helps you build). I created new slash command modes for Plan, Auto, and Ask that help answer questions and assist student learning in different ways. The changes have been tested and work accordingly.
+
+
+1. Toggle /plan, /auto, or /ask depending on which tool you want to use in the Opencode prompt editor.
+
+
+### How to use it
+
+1. Start opencode in the project you want to learn about:
+   ```sh
+   bun dev .
+   ```
+2. Type `/ask`, `/auto`, or `/plan`. Confirm that whichever one you typed in appears in the autocomplete list with its respective descriptions.
+3. Press Enter to run it. The session switches to mode that you chose to use.
+
+### How to user test it
+
+Tests live in [`packages/opencode/test/agent/agent.test.ts`](packages/opencode/test/agent/agent.test.ts). Run them from the package directory:
+
+```sh
+cd packages/opencode
+bun test test/command/agent.test.ts
+```
+
+Each test maps to an acceptance criterion from issue #6:
+
+
+
+
+### Why these tests are sufficient
+
+The toggle-slash PR adds two new primary agents (ask, auto) alongside the existing plan/build, and wires them up as slash commands (/plan, /ask, /auto) in the command palette.
+
+Tests that were added to packages/opencode/test/agent/agent.test.ts cover:
+
+Agent definition correctness — each new agent (ask, auto) has the expected mode: "primary", native: true, and permission defaults (ask denies edit/bash/write/patch; auto allows all of them).
+
+Subagent delegation permission — ask denies delegating to the general subagent, auto allows it, matching the acceptance criteria that auto behaves with full autonomy while ask stays read-only/conversational.
+
+Config integration — default_agent can be set to ask or auto and is respected.
+
+This covers the acceptance criteria from planning: a user can toggle between Plan, Ask, and Auto modes via slash command, each mode enforces the correct tool permissions, and the modes integrate with existing config/default-agent mechanisms.
+
+What is not covered by automated tests is the quality of the model's actual summary, because that depends on a live provider call and is non-deterministic. That is covered by the manual scenarios in the user test table above. The original "clear error message when the model call fails" criterion is satisfied by opencode's existing provider error handling in the TUI rather than by command-specific code, which is why there is no custom error path to test here.
