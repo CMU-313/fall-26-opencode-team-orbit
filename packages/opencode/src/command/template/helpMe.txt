@@ -1,0 +1,13 @@
+Help the user understand slash commands as well as how they would be best used
+
+write this for someone who may or may not be familiar with opencode and this specific project's custom commands
+
+## This is a read only task. Do not create, edit, or delete any files. Only read files.
+
+do not read every file, just the files that relate to the slash commands in opencode
+
+## What to output
+
+1. list the commands in order of relevance for this specific project
+2. give examples of what situation each command may be useful in
+3. give a simplistic explanation of what the basic function of each command is and how it works

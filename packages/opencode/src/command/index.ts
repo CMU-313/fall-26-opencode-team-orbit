@@ -12,6 +12,7 @@ import PROMPT_IMPORTANT from "./template/important.txt"
 import PROMPT_INITIALIZE from "./template/initialize.txt"
 import PROMPT_ORIENT from "./template/orient.txt"
 import PROMPT_REVIEW from "./template/review.txt"
+import PROMPT_HELPME from "./template/helpme.txt"
 import { LegacyEvent } from "@opencode-ai/schema/legacy-event"
 
 type State = {
@@ -52,6 +53,7 @@ export const Default = {
   INIT: "init",
   ORIENT: "orient",
   REVIEW: "review",
+  HELPME: "helpme",
 } as const
 
 export interface Interface {
@@ -122,7 +124,15 @@ const layer = Layer.effect(
         subtask: true,
         hints: hints(PROMPT_REVIEW),
       }
-
+      commands[Default.HELPME] = {
+        name: Default.HELPME,
+        description: "get help with the features, functions, and uses of the various slash commands",
+        source: "command",
+        get template() {
+          return PROMPT_HELPME.replace("${path}", ctx.worktree)
+        },
+        hints: hints(PROMPT_HELPME),
+      }
       for (const [name, command] of Object.entries(cfg.command ?? {})) {
         commands[name] = {
           name,
