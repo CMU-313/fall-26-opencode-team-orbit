@@ -47,7 +47,10 @@ describe("helpMe", () => {
     Effect.gen(function* () {
         const command = yield* Command.Service
         const helpMe = yield* command.get(Command.Default.HELPME)
-        expect(helpMe?.template.includes("This is a read only task. Do not create, edit, or delete any files. Only read files.")).toBe(true)
+        const template = yield* Effect.promise(() =>
+        Promise.resolve(helpMe?.template),
+    )
+        expect(template?.includes("This is a read only task. Do not create, edit, or delete any files. Only read files.")).toBe(true)
     }),
   )
 })
