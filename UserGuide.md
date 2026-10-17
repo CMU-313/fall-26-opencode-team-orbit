@@ -181,3 +181,51 @@ Each test maps to an acceptance criterion from issue #15:
 ### Why these tests are sufficient
 
 The `/btw` feature consists of four pieces: a registry entry in `packages/opencode/src/command/index.ts`, a prompt template in `packages/opencode/src/command/template/btw.txt`, the side-session branch in `packages/opencode/src/session/prompt.ts`, and the dialog that displays the answer in `packages/tui/src/component/prompt/index.tsx`. The first three are tested end to end through the real `Command`, `Session`, and `SessionPrompt` services against a fake model server. The registration tests verify the command exactly as the TUI sees it. The side-session test is the core guarantee of the feature and exercises the realistic case: the main run is deliberately held open while `/btw` runs, so the test proves the answer arrives concurrently, is grounded in the main conversation, and leaves no trace in either the stored history or the agent's next-turn context. The two file tests go beyond checking that the `plan` agent is bound: they have the model actually attempt a write and confirm the filesystem is untouched.
+
+# `/HelpMe` — summarize what all of the relevant slash commands are and where they might be used
+
+**Owner:** Billy McGrath (issue [#4](https://github.com/CMU-313/fall-26-opencode-team-orbit/issues/4), PR [#20](https://github.com/CMU-313/fall-26-opencode-team-orbit/pull/20)
+
+### What it does
+
+The issue consisted of the desire for the user to be able to get a clearer understanding of what the slash commands included in the project are and specifically what circumstances you would want to use them in so that even a user that has only just been introduced to the project can receive a solid understanding of that project's commands and why they might want them. I created a new slash command which is called /helpme so it shows up in the same quick fill results as help, which presumably new users would start typing anyway, and then they would see this as an alternative or in addition to the usual /help command. 
+
+
+### How to use it
+
+1. Start opencode in the project you want to work in:
+   ```sh
+   bun dev .
+   ```
+2. Type `/helpme`
+3. Press Enter to run it. The agent will then go through the commands and describe them to the user.
+
+### How to user test it
+
+The tests for this function are located at [`/packages/opencode/test/command/helpme.test.ts`](packages/opencode/test/command/helpme.test.ts). Run them from the package directory:
+
+```sh
+cd packages/opencode
+bun test test/command/helpme.test.ts
+```
+
+The tests are derived from the relatively simple acceptance criterion from issue #4:
+
+"This feature must consistently work when called for and function on every possible slash command that functions properly"
+
+### Why these tests are sufficient
+
+The helpMe command PR adds one new slash command that is meant to explain and give context to the other slash commands, especially custom ones from the command palette.
+
+Tests that were added to packages/opencode/test/command/helpme.test.ts cover:
+
+registration as a functional command — makes sure the command itself is present and working both from the user and system perspective
+
+makes sure a template is present of some kind to make sure instructions are present — makes sure the instructions within helpme.txt havent been removed and that the file itself is still there
+
+includes hints for the user on the command — makes sure the command itself has its hints and is not just a list of commands
+
+the agent is not allowed to edit files through this command — makes sure the agent will not edit or delete any of the files in the repo and will just read
+
+
+These tests cover much of the base level functions of the command and makes sure that there has not been any file conflicts or deletions that may cause issues with the agent's ability to carry out the command, and the only thing of major relevance that is not tested here is just the quality of the descriptions given because while they are largely based on the descriptions and instructions in the files for the other commands, it will vary somewhat based on both the model used and the amount of custom commands in use in a project, as well as the helpfulness of the response itself as that is something that can only be determined by real users looking at the responses as that is not something that can be easily tested for directly.
