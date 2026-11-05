@@ -20,8 +20,11 @@ Do not read every file, and do not run builds or tests.
 
 **Important files**: 5 to 10 paths, each with a one-line reason it matters (for example: entrypoint, core logic, main config).
 
-**Safe to ignore for now**: 3 to 5 paths or patterns a newcomer can skip, each with a one-line reason (for example: lockfiles, generated output, translated docs, editor config).
+**Safe to ignore for now**: 3 to 5 paths or patterns a newcomer can skip, each with a one-line reason (for example: generated output, translated docs, editor config).
 
+Rules for both lists:
+- Never list lockfiles (package-lock.json, bun.lock, yarn.lock, and similar) in either list.
+- If you list CI workflow files (.github/workflows/) as safe to ignore, the reason must say to ignore them unless CI fails.
 End with one sentence saying which file to open first.
 
 Only list paths that actually exist. Keep it short: no long explanations, and do not offer to do anything further.
