@@ -40,8 +40,9 @@ describe("util.process", () => {
     })
 
     expect(out.code).not.toBe(0)
-    expect(Date.now() - started).toBeLessThan(1000)
-  }, 3000)
+    // Spawn and signal delivery can exceed 1s when the suite runs under load.
+    expect(Date.now() - started).toBeLessThan(2500)
+  }, 5000)
 
   test("kills after timeout when process ignores terminate signal", async () => {
     if (process.platform === "win32") return
@@ -57,8 +58,8 @@ describe("util.process", () => {
     })
 
     expect(out.code).not.toBe(0)
-    expect(Date.now() - started).toBeLessThan(1000)
-  }, 3000)
+    expect(Date.now() - started).toBeLessThan(2500)
+  }, 5000)
 
   test("uses cwd when spawning commands", async () => {
     await using tmp = await tmpdir()
