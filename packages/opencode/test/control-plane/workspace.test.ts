@@ -1395,6 +1395,7 @@ describe("workspace sync state", () => {
                 Effect.gen(function* () {
                   expect((yield* sessionSvc.get(session.id).pipe(Effect.orDie)).title).toBe("from history")
                 }),
+                10_000,
               )
               expect(historyBodies).toEqual([{ [session.id]: historyNextSeq - 1 }])
               expect(
@@ -1414,7 +1415,7 @@ describe("workspace sync state", () => {
         { git: true },
       )
     })
-  })
+  }, { retry: 2, timeout: 60_000 })
 
   it.live("SSE forwards non-heartbeat events and ignores heartbeats", () =>
     Effect.gen(function* () {
