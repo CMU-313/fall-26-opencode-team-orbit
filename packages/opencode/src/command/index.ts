@@ -7,6 +7,7 @@ import { Effect, Layer, Context, Schema } from "effect"
 import { Config } from "@/config/config"
 import { MCP } from "../mcp"
 import { Skill } from "../skill"
+import { Orient } from "./orient"
 import PROMPT_BTW from "./template/btw.txt"
 import PROMPT_IMPORTANT from "./template/important.txt"
 import PROMPT_INITIALIZE from "./template/initialize.txt"
@@ -108,7 +109,7 @@ const layer = Layer.effect(
         name: Default.ORIENT,
         description: "summarize what this project is and does",
         source: "command",
-        agent: "plan",
+        agent: Orient.AGENT,
         get template() {
           return PROMPT_ORIENT.replace("${path}", ctx.worktree)
         },
