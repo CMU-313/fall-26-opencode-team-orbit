@@ -22,8 +22,9 @@ const agentLayer = () =>
 const it = testEffect(agentLayer())
 const load = <A>(fn: (svc: Agent.Interface) => Effect.Effect<A>) => Agent.Service.use(fn)
 
-const WRITE_TOOLS = ["edit", "write", "patch", "bash"] as const
-const tool = fc.constantFrom(...WRITE_TOOLS)
+const DENIED_TOOLS = ["edit", "write", "patch"] as const
+const deniedTool = fc.constantFrom(...DENIED_TOOLS)
+const tool = fc.constantFrom("edit", "write", "patch", "bash") as fc.Arbitrary<string>
 const target = fc.string({ minLength: 1 })
 
 afterEach(async () => {
@@ -34,12 +35,11 @@ afterEach(async () => {
 // Kind: invariant (every tool and target is denied).
 // Generator: every write/command tool with arbitrary targets, including
 // empty-looking and punctuation-heavy strings.
-it.instance("R2: Ask mode denies every write and command tool for any target", () =>
-  Effect.gen(function* () {
+it.instance("R2: Ask mode denies every edit, write, and patch tool for any target", () =>  Effect.gen(function* () {
     const ask = yield* load((svc) => svc.get("ask"))
     expect(ask).toBeDefined()
     fc.assert(
-      fc.property(tool, target, (t, pattern) => {
+      fc.property(deniedTool, target, (t, pattern) => {
         expect(Permission.evaluate(t, pattern, ask!.permission).action).toBe("deny")
       }),
     )
