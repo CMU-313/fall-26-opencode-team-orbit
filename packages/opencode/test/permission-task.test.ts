@@ -256,21 +256,23 @@ describe("permission.task with real config files", () => {
   )
 
   it.instance(
-    "task tool disabled when global deny comes last in config",
+    "specific allows still apply when global deny comes last in config",
     () =>
       Effect.gen(function* () {
         const config = yield* load
         const ruleset = Permission.fromConfig(config.permission ?? {})
 
-        // Last matching rule wins - "*" deny is last, so all agents are denied
-        expect(Permission.evaluate("task", "general", ruleset).action).toBe("deny")
-        expect(Permission.evaluate("task", "code-reviewer", ruleset).action).toBe("deny")
+        // The most specific matching rule wins regardless of the order the rules
+        // are written in, so the named agents stay allowed and everything else
+        // falls through to the "*" deny.
+        expect(Permission.evaluate("task", "general", ruleset).action).toBe("allow")
+        expect(Permission.evaluate("task", "code-reviewer", ruleset).action).toBe("allow")
         expect(Permission.evaluate("task", "unknown", ruleset).action).toBe("deny")
 
-        // Since "*": "deny" is the last rule, disabled() finds it with findLast
-        // and sees pattern: "*" with action: "deny", so task is disabled
+        // Same result as writing "*": "deny" first: some agents are allowed,
+        // so the task tool is not disabled.
         const disabled = Permission.disabled(["task"], ruleset)
-        expect(disabled.has("task")).toBe(true)
+        expect(disabled.has("task")).toBe(false)
       }),
     {
       git: true,
