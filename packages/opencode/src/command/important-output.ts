@@ -144,7 +144,8 @@ export interface Entry {
   }
   
   function isWorkflow(p: string): boolean {
-    return normalize(p).startsWith(".github/workflows/")
+    const n = normalize(p)
+    return n === ".github/workflows" || n.startsWith(".github/workflows/")
   }
   
   // ---------- checking ----------

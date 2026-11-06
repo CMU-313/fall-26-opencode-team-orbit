@@ -28,6 +28,8 @@ Feature: the `/important` built-in slash command in opencode. The command is a p
 
 - **R3, code bug:** While reviewing R3, I found the template's own example listed "lockfiles" under Safe to ignore, which contradicts R3. I removed that example, added rules telling the model never to list lockfiles and to give CI workflows a CI condition, and added an example test (`important.test.ts`: "does not tell the model lockfiles are safe to ignore (R3)"). Commit `514b43b`.
 
+- **R3, code bug (found by a property):** "R3 (conditional invariant)" failed with seed 1588636916. Shrunk counterexample: a repo with no workflow files and a Safe-to-ignore entry `.github/workflows/` whose reason was "entrypoint". The checker reported no R3 violation. Cause: `isWorkflow` stripped the trailing slash and then required `.github/workflows/`, so the directory itself never counted as a workflow. I classified this as a code bug, not a wrong test (the oracle follows R3's acceptance wording) and not a requirement problem (R3 is consistent with R4, which separately flags the missing path). Fixed `isWorkflow` to accept the directory itself; all properties pass on repeated runs.
+
 ## AI disclosure
 
  An AI coding assistant (Claude) heavily assissted me in writing this code; I reviewed it myself, and I will run and edit the code myself before submission.
