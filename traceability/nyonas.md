@@ -1,0 +1,33 @@
+# Traceability: /important (Nehemia Yonas)
+
+Feature: the `/important` built-in slash command in opencode. The command is a prompt template (`packages/opencode/src/command/template/important.txt`); the model writes the output. To make my requirements executable, I added a pure parser and checker (`packages/opencode/src/command/important-output.ts`) that takes one `/important` output plus the repo's file list and returns one violation per broken requirement. My properties test that checker against requirement-derived oracles written in the test file. They show the checker enforces R1–R5 exactly; they do not show the model always produces passing output.
+
+## Requirements
+
+| ID | Interview evidence | Requirement | Acceptance Criteria | Changed in P4? | Property (kind) | Test |
+|---|---|---|---|---|---|---|
+| R1 | C-7, C-8, O-6, O-7: "never list generated stuff as important: node_modules, dist, build output" | Generated or vendored files are never listed as Important. | In a repo with node_modules/, dist/, vendor/, and gen/user_pb.js, none of these paths appear in the Important list. | No | Generated/vendored paths in Important are always flagged (invariant) | `important.property.test.ts`: "R1 (invariant)" |
+| R2 | C-9, C-10, C-11, O-8, O-9, O-10, O-11: "those = files where newcomer does real damage" | Entry points, build config, test setup, auth, secrets handling, migrations, and production config are never listed as Safe to ignore. | In a repo with src/index.js, package.json, jest.config.js, src/auth/, db/migrations/, and config/application-prod.yml, none of these paths matches any Safe-to-ignore entry. | No | Protected paths matched by any Safe-to-ignore entry are always flagged (invariant) | `important.property.test.ts`: "R2 (invariant)" |
+| R3 | C-12, C-13, C-14, C-15, C-16, C-17: "should've said something like 'ignore unless CI fails,' not just ignore" | Lockfiles appear in neither list, and CI workflow files are only marked ignorable with a CI condition. | In a repo with package-lock.json and .github/workflows/grade.yml, package-lock.json appears in neither list, and if .github/workflows is under Safe to ignore, its reason contains "CI" (e.g. "ignore unless CI fails"). | No | Lockfiles in either list are flagged; CI workflows under Safe to ignore are flagged only when the reason lacks "CI" (conditional invariant) | `important.property.test.ts`: "R3 (conditional invariant)" |
+| R4 | C-37, O-33, O-34, O-35: "one fake path = would stop using this" | Every path in the output exists in the repo. | In a repo with no src/routes.js, the output never mentions src/routes.js; every listed path exists on disk and every ignore pattern matches at least one file. | No | Nonexistent paths and ignore patterns that match no file are always flagged (invariant) | `important.property.test.ts`: "R4 (invariant)" |
+| R5 | C-18, C-19, C-21, C-22, C-23, O-18, O-19, O-20: "file never important in one run, safe to ignore in next" | An /important output is self-consistent: the open-first file is a member of the Important list, and no path appears in both the Important and Safe-to-ignore lists. | In any output, the open-first file is in the Important list and no path appears in both lists; reordering the entries does not change the checker's verdict. Cross-run agreement is checked manually (run /important twice on an unchanged repo and compare). | Yes | Open-first outside Important and paths in both lists are always flagged (invariant); reversing entry order leaves the set of violations unchanged (metamorphic) | `important.property.test.ts`: "R5 (invariant)", "R5 (metamorphic)" |
+| R1–R5 (support) | (same as above) | The parser reads every output the checker judges without losing or inventing entries. | For any generated output, parsing its serialized text returns the same entries, reasons, and open-first file. | New supporting property | parse(serialize(output)) equals output (round-trip) | `important.property.test.ts`: "Parser (round-trip)" |
+
+## Requirement review (Step 1)
+
+- **R1, R2, R3, R4: kept.** Each one judges a single output against the repo's file list, so given an output and the files, the answer is deterministic and I can check it over many generated repos and outputs.
+- **R5: revised.** The original compares two model runs, which I can't generate or check in CI (no model access, and a property needs hundreds of deterministic evaluations). Because the model samples its output, two runs on the same commit can also legitimately differ, so the original is not something the code can guarantee.
+
+## Requirement changes
+
+| ID | Original | Revised | Why |
+|---|---|---|---|
+| R5 | Two runs on the same commit agree on the open-first file, the top 3 Important files, and which list every file is in. Acceptance: Running twice on an unchanged repo gives the same open-first file both times, the same top 3 Important files, no file that is Important in one run and Safe to ignore in the other, and at most 2 Important files that differ. | An /important output is self-consistent: the open-first file is a member of the Important list, and no path appears in both the Important and Safe-to-ignore lists. Acceptance: in any output, the open-first file is in the Important list and no path appears in both lists; reordering the entries does not change the checker's verdict. | The original compares two model-generated runs. I can't check that with fast-check, since CI cannot call the model and two runs can legitimately differ because the model samples its output. I narrowed R5 to the part I can check on one output: a file must never be on both sides at once, and the recommended file must be one of the Important files. This keeps the core of the interview concern (a file must not be both important and ignorable) but drops agreement across runs, so I kept that as a manual spot-check. |
+
+## Code fixes found during P4
+
+- **R3, code bug:** While reviewing R3, I found the template's own example listed "lockfiles" under Safe to ignore, which contradicts R3. I removed that example, added rules telling the model never to list lockfiles and to give CI workflows a CI condition, and added an example test (`important.test.ts`: "does not tell the model lockfiles are safe to ignore (R3)"). Commit `514b43b`.
+
+## AI disclosure
+
+ An AI coding assistant (Claude) heavily assissted me in writing this code; I reviewed it myself, and I will run and edit the code myself before submission.
