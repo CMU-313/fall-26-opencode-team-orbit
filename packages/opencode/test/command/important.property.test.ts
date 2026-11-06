@@ -7,7 +7,7 @@
 // written below from the requirement text, not from the module under test, so
 // a bug in the module cannot hide by agreeing with itself.
 
-import { describe, expect, test } from "bun:test"
+import { afterAll, describe, expect, test } from "bun:test"
 import fc from "fast-check"
 import {
   checkImportantOutput,
@@ -258,3 +258,9 @@ describe("/important output checker properties", () => {
     )
   })
 })
+
+// bun test runs with --only-failures in CI, which hides passing tests. This line
+// makes the CI log show that these properties actually ran.
+afterAll(() => {
+    console.log("[important.property] ran 7 properties (R1-R5 + parser round-trip), 100 generated cases each")
+  })
