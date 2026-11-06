@@ -1,5 +1,4 @@
-// Property-based tests for the permission rules feature (Project 4).
-// Each property checks one requirement from traceability/justinku.md.
+// Property-based tests for the permission rules feature
 
 import { test, expect } from "bun:test"
 import fc from "fast-check"
