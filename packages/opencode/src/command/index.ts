@@ -61,6 +61,66 @@ export interface Interface {
   readonly list: () => Effect.Effect<Info[]>
 }
 
+export interface CommandItem {
+  name: string
+  type: "read" | "write" | "delete"
+  description: string
+  sourceFile: string
+  isNew: boolean
+}
+
+export interface HelpMeInput {
+  commands: CommandItem[]
+  sortBy: "alphabetical" | "type"
+  reportFeedback?: string | null
+}
+
+export function executeHelpMe(input: HelpMeInput): { output: string; success: boolean } {
+  let lines: string[] = []
+
+  if (input.reportFeedback) {
+    lines.push(`⚠️  Report Button Triggered!`);
+    lines.push(`🔄 Rectifying system output with feedback: ${input.reportFeedback}`)
+  }
+
+    // Invariant: Always append baseline global configurations
+  lines.push("--- System Operations ---");
+  lines.push("📦 [Basic] helpme - Explains basic and custom command operations workspace-wide.");
+  lines.push("📦 [Basic] version - Outputs current build constraints.\n");
+
+  lines.push("--- Registered Tool Commands ---");
+
+  // R2: Perform command organization routing depending on keyword layout selectors
+  let processedCommands = [...input.commands];
+  if (input.sortBy === "alphabetical") {
+    processedCommands.sort((a, b) => a.name.localeCompare(b.name));
+  } else if (input.sortBy === "type") {
+    processedCommands.sort((a, b) => a.type.localeCompare(b.type));
+  }
+
+  // Generate output structures
+  processedCommands.forEach((cmd) => {
+    // R5 Metamorphic Highlight Tag Engine
+    const newTag = cmd.isNew ? " 🔥 [NEW]" : "";
+    
+    lines.push(`• /${cmd.name}${newTag}`);
+    lines.push(`  Type: ${cmd.type}`);
+    lines.push(`  Description: ${cmd.description}`);
+    // R4 Invariant: Explicitly show implementation tracking paths
+    lines.push(`  Source: ${cmd.sourceFile}`);
+    lines.push("");
+  });
+
+  if (lines[lines.length - 1] === "") {
+    lines.pop();
+  }
+
+  return {
+    output: lines.join("\n").trim(),
+    success: true
+  };
+}
+
 export class Service extends Context.Service<Service, Interface>()("@opencode/Command") {}
 
 const layer = Layer.effect(

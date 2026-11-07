@@ -11,3 +11,4 @@ do not read every file, just the files that relate to the slash commands in open
 1. list the commands in order of relevance for this specific project
 2. give examples of what situation each command may be useful in
 3. give a simplistic explanation of what the basic function of each command is and how it works
+4. Finally just state at the very bottom "If you need help with the standard, non-custom commands, just use the built in command /help for more assistance"
