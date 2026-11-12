@@ -40,10 +40,8 @@ Properties written or suggested by opencode or another AI tool: none
 
 | H2 | R2 | Ask `bash` changed from "ask" to "deny" | Survived (only edit checked) | Killed | R2 property failed on write with target " ", received "allow". Deleting the write rule let it fall through to the "*": "allow" default.
 
-| H3 | R3 | Ask `edit` adds `"*.md": "allow"` | Denies every edit, write, and patch | survived (no property checks task in auto mode) | survived | All 5 properties passed. The auto-mode property covers write and command tools but not task.general. This is a gap to fill in the strengthening step.
+| H3 | R3 | Ask `edit` adds `"*.md": "allow"` | Denies every edit, write, and patch | survived (no property checks task in auto mode)| All 5 properties passed. The auto-mode property covers write and command tools but not task.general. This is a gap to fill in the strengthening step.
 
-| H4 | R4 | Ask `write` rule removed (falls back to allow) | Denies every edit, write, and patch | (run and record) |
+| H4 | R4 | Ask `write` rule removed (falls back to allow) | Denies every edit, write, and patch | Survived | All 5 properties passed. The plan-mode property only checks the deny side, so removing the *.md allow rule went unnoticed. This is a gap to fill in the strengthening step
 
 | H5 | R5 | Defaults `"*.env": "ask"` removed (equivalent for Ask) | None | (run and record) |
-
-No mutants yet for R1, R3 (switch-handler part), R4, or R5: the code that implements them isn't located.
