@@ -38,7 +38,7 @@ Properties written or suggested by opencode or another AI tool: none
 | ID | Requirement targeted | Change | Predicted killer | Actual result | Notes
 | H1 | R2 | Ask `read` changed from "ask" to "allow" | R2: Ask requires approval before reads | Killed | Killed | Failed the non-plan edit path property (expect(...).toBe("deny"), received "ask")
 
-| H2 | R2 | Ask `bash` changed from "ask" to "deny" | None | (run and record) |
+| H2 | R2 | Ask `bash` changed from "ask" to "deny" | Survived (only edit checked) | Killed | R2 property failed on write with target " ", received "allow". Deleting the write rule let it fall through to the "*": "allow" default.
 
 | H3 | R2 | Ask `edit` adds `"*.md": "allow"` | Denies every edit, write, and patch | (run and record) |
 

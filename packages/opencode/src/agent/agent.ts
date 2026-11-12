@@ -202,9 +202,6 @@ const layer = Layer.effect(
                 patch: {
                   "*": "deny",
                 },
-                write: {
-                  "*": "deny",
-                },
               }),
               user,
             ),
