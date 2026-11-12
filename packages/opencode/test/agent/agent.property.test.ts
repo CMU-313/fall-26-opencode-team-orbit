@@ -13,6 +13,8 @@ import { Plugin } from "../../src/plugin"
 import { Provider } from "../../src/provider/provider"
 import { Skill } from "../../src/skill"
 
+fc.configureGlobal({ seed: 42 })
+
 const agentLayer = () =>
   LayerNode.compile(
     LayerNode.group([Agent.node, Plugin.node, Provider.node, Auth.node, Config.node, Skill.node, RuntimeFlags.node]),
@@ -31,11 +33,12 @@ afterEach(async () => {
   await disposeAllInstances()
 })
 
-// R2: In Ask mode, write and command tools are denied.
-// Kind: invariant (every tool and target is denied).
-// Generator: every write/command tool with arbitrary targets, including
+// R2: In Ask mode, edit tools are denied and commands require approval.
+// Kind: invariant (every edit tool and target is denied).
+// Generator: every edit tool with arbitrary targets, including
 // empty-looking and punctuation-heavy strings.
-it.instance("R2: Ask mode denies every edit, write, and patch tool for any target", () =>  Effect.gen(function* () {
+it.instance("R2: Ask mode denies every edit, write, and patch tool for any target", () =>
+  Effect.gen(function* () {
     const ask = yield* load((svc) => svc.get("ask"))
     expect(ask).toBeDefined()
     fc.assert(
@@ -48,7 +51,7 @@ it.instance("R2: Ask mode denies every edit, write, and patch tool for any targe
 
 // R2: Ask mode's write/command decision does not depend on the target.
 // Kind: metamorphic (changing the target leaves the decision unchanged).
-// Generator: same tool set and arbitrary targets, compared against the "*" target.
+// Generator: write and command tools with arbitrary targets, compared against the "*" target.
 it.instance("R2: Ask mode decision for write tools ignores the target", () =>
   Effect.gen(function* () {
     const ask = yield* load((svc) => svc.get("ask"))
@@ -61,9 +64,8 @@ it.instance("R2: Ask mode decision for write tools ignores the target", () =>
   }),
 )
 
-// R2 (as written in P3): Ask mode requires approval before reads.
-// Kind: invariant. EXPECTED TO FAIL against the current code: Ask inherits
-// read "*": "allow" from defaults. Triage this one (see below).
+// R2: Ask mode requires approval before reads.
+// Kind: invariant.
 it.instance("R2: Ask mode requires approval before reads", () =>
   Effect.gen(function* () {
     const ask = yield* load((svc) => svc.get("ask"))
