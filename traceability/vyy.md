@@ -35,11 +35,15 @@ Properties written or suggested by opencode or another AI tool: none
 
 ## Hand-written mutants
 
-| ID | Requirement targeted | Change | Predicted killer | Actual result |
-| H1 | R2 | Ask `read` changed from "ask" to "allow" | R2: Ask requires approval before reads | (run and record) |
+| ID | Requirement targeted | Change | Predicted killer | Actual result | Notes
+| H1 | R2 | Ask `read` changed from "ask" to "allow" | R2: Ask requires approval before reads | Killed | Killed | Failed the non-plan edit path property (expect(...).toBe("deny"), received "ask")
+
 | H2 | R2 | Ask `bash` changed from "ask" to "deny" | None | (run and record) |
+
 | H3 | R2 | Ask `edit` adds `"*.md": "allow"` | Denies every edit, write, and patch | (run and record) |
+
 | H4 | R2 | Ask `write` rule removed (falls back to allow) | Denies every edit, write, and patch | (run and record) |
+
 | H5 | R2 | Defaults `"*.env": "ask"` removed (equivalent for Ask) | None | (run and record) |
 
 No mutants yet for R1, R3 (switch-handler part), R4, or R5: the code that implements them isn't located.
