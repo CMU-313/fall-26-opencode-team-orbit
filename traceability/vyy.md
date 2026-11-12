@@ -42,6 +42,6 @@ Properties written or suggested by opencode or another AI tool: none
 
 | H3 | R3 | Ask `edit` adds `"*.md": "allow"` | Denies every edit, write, and patch | survived (no property checks task in auto mode)| All 5 properties passed. The auto-mode property covers write and command tools but not task.general. This is a gap to fill in the strengthening step.
 
-| H4 | R4 | Ask `write` rule removed (falls back to allow) | Denies every edit, write, and patch | Survived | All 5 properties passed. The plan-mode property only checks the deny side, so removing the *.md allow rule went unnoticed. This is a gap to fill in the strengthening step
+| H4 | R4 | Plan [".opencode", "plans", "*.md"] allow rule removed | Plan-mode property asserting .opencode/plans/x.md is "allow" | Survived | All 5 properties passed. The plan-mode property only checks the deny side, so removing the *.md allow rule went unnoticed. Gap for the strengthening step.
 
-| H5 | R5 | Defaults `"*.env": "ask"` removed (equivalent for Ask) | None | (run and record) |
+| H5 | R5 | Plan Permission.merge puts user before defaults | Plan-mode property asserting edits outside .opencode/plans/*.md are denied | Killed | (fill in after running) |
