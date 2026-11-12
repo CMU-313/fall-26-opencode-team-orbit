@@ -44,4 +44,4 @@ Properties written or suggested by opencode or another AI tool: none
 
 | H4 | R4 | Plan [".opencode", "plans", "*.md"] allow rule removed | Plan-mode property asserting .opencode/plans/x.md is "allow" | Survived | All 5 properties passed. The plan-mode property only checks the deny side, so removing the *.md allow rule went unnoticed. Gap for the strengthening step.
 
-| H5 | R5 | Plan Permission.merge puts user before defaults | Plan-mode property asserting edits outside .opencode/plans/*.md are denied | Killed | (fill in after running) |
+| H5 | R5 | Plan Permission.merge puts user before defaults | Plan-mode property asserting edits outside .opencode/plans/.md are denied, killed | Killed | The existing plan-mode property checks the deny outcome directly, so any change that lets defaults override plan’s edit deny is visible to it.
