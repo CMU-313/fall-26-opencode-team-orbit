@@ -198,6 +198,9 @@ const layer = Layer.effect(
               defaults,
               Permission.fromConfig({
                 question: "allow",
+                read: {
+                  "*": "ask",
+                },
                 task: {
                   general: "deny",
                 },
@@ -205,7 +208,7 @@ const layer = Layer.effect(
                   "*": "deny",
                 },
                 bash: {
-                  "*": "deny",
+                  "*": "ask",
                 },
                 patch: {
                   "*": "deny",
