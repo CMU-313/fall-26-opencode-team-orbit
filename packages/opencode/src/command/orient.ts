@@ -19,11 +19,11 @@ const UNSAFE = [">", "<", "|", ";", "&", "$", "`", "(", "\n", "--output"]
 export function permission(defaults: PermissionV1.Ruleset, user: PermissionV1.Ruleset) {
   return Permission.merge(
     defaults,
-    user,
     Permission.fromConfig({ bash: { "*": "ask", "git status *": "allow", "git log *": "allow" } }),
     // A ruleset of their own, so they stay after the allow rules however
     // fromConfig orders the rules inside one ruleset (it sorts by specificity).
     Permission.fromConfig({ bash: Object.fromEntries(UNSAFE.map((token) => [`*${token}*`, "ask" as const])) }),
+    user,
     // Placed after the user's rules so that no config can let /orient write files
     // or hand the work to a subagent that can.
     Permission.fromConfig({ edit: "deny", task: "deny" }),
