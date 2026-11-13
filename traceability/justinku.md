@@ -79,3 +79,82 @@ No example-based tests were added. Every survivor is killed by a changed generat
 ### Equivalent mutants
 
 **41:57, `command.trim().split(/\s+/)` changed to `command.trim().split(/\s/)`.** The only difference is that a run of whitespace now produces empty strings between words. `words()` is used in two ways: `words(pattern)[0]`, and `flags()`, which keeps the words that start with `-`. After `.trim()` the first element is the same in both versions (the text before the first whitespace character), and an empty string never starts with `-`, so both callers return the same value for every input. No test can tell them apart.
+
+## Agent failure case
+ 
+**Property:** "R5: always approvals restrict bash flags (and don't restrict other tools)", written by opencode in a scratch file `packages/opencode/test/permission/agent.test.ts` (not committed). I asked for it during Project 5 and ran my hand-written mutants against it.
+ 
+**Transcript.** Share link: https://opncd.ai/share/Mk23vzlr
+ 
+> **Me:** Read requirement R5 in traceability/justinku.md and the code in packages/opencode/src/permission/index.ts. Write one fast-check property test for R5 in a new file packages/opencode/test/permission/agent.test.ts. Do not read or copy packages/opencode/test/permission/permission.test.ts.
+>
+> **opencode** (the property it wrote; setup code omitted):
+>
+> ```ts
+> test("R5: always approvals restrict bash flags (and don't restrict other tools)", async () => {
+>   await fc.assert(
+>     fc.asyncProperty(
+>       fc.constantFrom(...HEADS),
+>       fc.array(fc.constantFrom(...FLAGS, ...WORDS), { maxLength: 4 }),
+>       fc.array(fc.constantFrom(...FLAGS, ...WORDS), { maxLength: 4 }),
+>       async (head, approvedTail, laterTail) => {
+>         const approved = [...head, ...approvedTail]
+>         const later = [...head, ...laterTail]
+>
+>         const approvedFlags = approved.filter(isFlag)
+>         const laterFlags = later.filter(isFlag)
+>         const expectedBashRuns = laterFlags.every((flag) => approvedFlags.includes(flag))
+>
+>         const bashOutcome = await afterAlways("bash", approved, later)
+>         expect(bashOutcome).toBe(expectedBashRuns ? "runs" : "prompts")
+>
+>         // Invariant: for tools other than bash, later flags should not restrict the approval.
+>         const otherOutcome = await afterAlways("edit", approved, later)
+>         expect(otherOutcome).toBe("runs")
+>       },
+>     ),
+>     { seed: 42, numRuns: 40 },
+>   )
+> })
+> ```
+ 
+**The mutant that survived.** H4 (`mutants/justinku/H4.patch`), which stops treating `--` as a flag:
+ 
+```diff
+-const flags = (command: string) => words(command).filter((word) => word.startsWith("-"))
++const flags = (command: string) => words(command).filter((word) => word.startsWith("-") && word !== "--")
+```
+ 
+With H4 applied, approving `git checkout feature-x` with "always" lets `git checkout -- .` run without a prompt, which is the exact case from the interviews (S-5, O-5). opencode's property passes on it:
+ 
+```
+== H4
+ 1 pass
+ 0 fail
+ 80 expect() calls
+```
+ 
+H5 survives it too (every request holds one command, the same generator gap my own Project 4 property had). H1, H2 and H3 also pass, but they target R1, R2 and R3, which this property does not cover.
+ 
+**Why the property was too weak.** The assertion states both directions of R5, `--` is in its flag list, and it even checks that other tools are unaffected. The weakness is the run budget since opencode set `numRuns: 40` (fast-check's default is 100), and with seed 42 the first input that separates H4 from the real code is test number 66. To see H4, a run needs a later command that contains `--`, an approved command that does not, and every other flag in the later command already approved; that is a few percent of generated inputs, so 40 runs can miss it. The assertion was right and the generator could produce the input, but the property never ran long enough to reach it, and a green result gave no sign of that. The second weakness is the generator: every request holds exactly one command, so H5 cannot be reached at any run count.
+ 
+**Strengthened version.** My R5 property in `packages/opencode/test/permission/permission.test.ts`: the same two-direction assertion, the default 100 runs with seed 42, and a generator that approves one or two commands per request.
+ 
+```ts
+fc.asyncProperty(
+  fc.array(fc.tuple(fc.constantFrom(...HEADS), tail), { minLength: 1, maxLength: 2 }),
+  fc.nat(),
+  tail,
+  async (commands, pick, laterTail) => {
+    const approved = commands.map(([head, approvedTail]) => [...head, ...approvedTail])
+    const later = [...commands[pick % commands.length][0], ...laterTail]
+    const seen = approved.filter((tokens) => prefix(tokens) === prefix(later)).flatMap(flags)
+    const outcome = await afterAlways(request(...approved), request(later))
+    expect(outcome).toBe(flags(later).every((flag) => seen.includes(flag)) ? "runs" : "prompts")
+  },
+)
+```
+ 
+**Evidence it kills the mutant.**
+- Changing only `numRuns: 40` to `numRuns: 100` in opencode's property, with H4 applied, gives `Property failed after 66 tests`, `Counterexample: [["git","checkout"],[],["--"]]`: approve `git checkout`, then `git checkout --` runs without a prompt.
+- With H4 applied, my strengthened property fails: `(fail) R5: an always approval does not cover flags that were not in the approved command`. It also fails with H5 applied, which opencode's property cannot reach.
