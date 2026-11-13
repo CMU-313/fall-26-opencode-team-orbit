@@ -67,4 +67,14 @@ describe("/important command", () => {
       expect(important?.hints).toContain("$ARGUMENTS")
     }),
   )
+
+  it.instance("does not tell the model lockfiles are safe to ignore (R3)", () =>
+    Effect.gen(function* () {
+      const command = yield* Command.Service
+      const important = yield* command.get(Command.Default.IMPORTANT)
+      const template = yield* Effect.promise(async () => important!.template)
+      expect(template).toContain("Never list lockfiles")
+      expect(template).toContain("unless CI fails")
+    }),
+  )
 })
