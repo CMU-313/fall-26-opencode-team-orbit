@@ -1,0 +1,13 @@
+diff --git a/packages/opencode/src/permission/index.ts b/packages/opencode/src/permission/index.ts
+index 0eb0241..2c99408 100644
+--- a/packages/opencode/src/permission/index.ts
++++ b/packages/opencode/src/permission/index.ts
+@@ -39,7 +39,7 @@ const PROTECTED = new Set(["rm", "chmod", "chown"])
+ const STRICTNESS = { allow: 0, ask: 1, deny: 2 }
+ 
+ const words = (command: string) => command.trim().split(/\s+/)
+-const flags = (command: string) => words(command).filter((word) => word.startsWith("-"))
++const flags = (command: string) => words(command).filter((word) => word.startsWith("-") && word !== "--")
+ 
+ // Number of non-wildcard characters, so "rm *" is more specific than "*".
+ const specificity = (pattern: string) => pattern.replace(/[*?]/g, "").length
