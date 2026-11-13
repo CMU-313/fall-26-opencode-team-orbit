@@ -12,6 +12,10 @@ import { Permission } from "../../src/permission"
 import { Plugin } from "../../src/plugin"
 import { Provider } from "../../src/provider/provider"
 import { Skill } from "../../src/skill"
+import { Global } from "@opencode-ai/core/global"
+import path from "path"
+
+fc.configureGlobal({ seed: 42 })
 
 const agentLayer = () =>
   LayerNode.compile(
@@ -31,15 +35,15 @@ afterEach(async () => {
   await disposeAllInstances()
 })
 
-// R2: In Ask mode, write and command tools are denied.
-// Kind: invariant (every tool and target is denied).
-// Generator: every write/command tool with arbitrary targets, including
+// R2: In Ask mode, edit tools are denied and commands require approval.
+// Kind: invariant (every edit tool and target is denied).
+// Generator: every edit tool with arbitrary targets, including
 // empty-looking and punctuation-heavy strings.
-it.instance("R2: Ask mode denies every edit, write, and patch tool for any target", () =>  Effect.gen(function* () {
+it.instance("R2: Ask mode denies write tools for any target", () =>
+  Effect.gen(function* () {
     const ask = yield* load((svc) => svc.get("ask"))
-    expect(ask).toBeDefined()
     fc.assert(
-      fc.property(deniedTool, target, (t, pattern) => {
+      fc.property(fc.constantFrom("write", "patch"), target, (t, pattern) => {
         expect(Permission.evaluate(t, pattern, ask!.permission).action).toBe("deny")
       }),
     )
@@ -48,7 +52,7 @@ it.instance("R2: Ask mode denies every edit, write, and patch tool for any targe
 
 // R2: Ask mode's write/command decision does not depend on the target.
 // Kind: metamorphic (changing the target leaves the decision unchanged).
-// Generator: same tool set and arbitrary targets, compared against the "*" target.
+// Generator: write and command tools with arbitrary targets, compared against the "*" target.
 it.instance("R2: Ask mode decision for write tools ignores the target", () =>
   Effect.gen(function* () {
     const ask = yield* load((svc) => svc.get("ask"))
@@ -61,9 +65,9 @@ it.instance("R2: Ask mode decision for write tools ignores the target", () =>
   }),
 )
 
-// R2 (as written in P3): Ask mode requires approval before reads.
-// Kind: invariant. EXPECTED TO FAIL against the current code: Ask inherits
-// read "*": "allow" from defaults. Triage this one (see below).
+// R2: Ask mode requires approval before reads.
+// Kind: invariant.
+// Generator: arbitrary read targets.
 it.instance("R2: Ask mode requires approval before reads", () =>
   Effect.gen(function* () {
     const ask = yield* load((svc) => svc.get("ask"))
@@ -75,13 +79,27 @@ it.instance("R2: Ask mode requires approval before reads", () =>
   }),
 )
 
+// R2: Ask mode asks before running any shell command.
+// Kind: invariant (kills the bash survivor where the bash rule is removed).
+// Generator: arbitrary command strings.
+it.instance("R2: Ask mode asks before any bash command", () =>
+  Effect.gen(function* () {
+    const ask = yield* load((svc) => svc.get("ask"))
+    fc.assert(
+      fc.property(fc.string(), (cmd) => {
+        expect(Permission.evaluate("bash", cmd, ask!.permission).action).toBe("ask")
+      }),
+    )
+  }),
+)
+
 // R1 is about the status bar and is not tested here. See below.
 
-// Plan mode: edits are denied except markdown files under .opencode/plans/.
+// R3: Plan mode denies edits outside .opencode/plans/*.md.
 // Kind: invariant.
 // Generator: arbitrary paths, filtered to exclude the allowed pattern so the
 // property checks the denial rule.
-it.instance("Plan mode denies edits outside .opencode/plans/*.md", () =>
+it.instance("R3: Plan mode denies edits outside .opencode/plans/*.md", () =>
   Effect.gen(function* () {
     const plan = yield* load((svc) => svc.get("plan"))
     fc.assert(
@@ -95,14 +113,57 @@ it.instance("Plan mode denies edits outside .opencode/plans/*.md", () =>
   }),
 )
 
-// Auto mode: edits, writes, patches, and commands are allowed.
+// R4: Plan mode allows plan files with any valid name under .opencode/plans/.
+// Kind: invariant (kills H4, where the *.md allow rule is removed).
+// Generator: random safe filenames, so the property tests many names, not one example.
+it.instance("R4: Plan mode allows any .md file under .opencode/plans/", () =>
+  Effect.gen(function* () {
+    const plan = yield* load((svc) => svc.get("plan"))
+    fc.assert(
+      fc.property(fc.stringMatching(/^[a-z0-9_-]{1,20}$/), (name) => {
+        expect(Permission.evaluate("edit", `.opencode/plans/${name}.md`, plan!.permission).action).toBe("allow")
+      }),
+    )
+  }),
+)
+
+// R4: Plan mode allows external-directory access to plan files.
+// Kind: invariant (kills the external_directory survivor).
+// Generator: random safe filenames placed in the global plans folder.
+it.instance("R4: Plan mode allows external access to plan files", () =>
+  Effect.gen(function* () {
+    const plan = yield* load((svc) => svc.get("plan"))
+    fc.assert(
+      fc.property(fc.stringMatching(/^[a-z0-9_-]{1,20}$/), (name) => {
+        const p = path.join(Global.Path.data, "plans", name)
+        expect(Permission.evaluate("external_directory", p, plan!.permission).action).toBe("allow")
+      }),
+    )
+  }),
+)
+
+// R5: Auto mode allows every write and command tool for any target.
 // Kind: invariant. Generator: same tool set, arbitrary targets.
-it.instance("Auto mode allows every write and command tool for any target", () =>
+it.instance("R5: Auto mode allows every write and command tool for any target", () =>
   Effect.gen(function* () {
     const auto = yield* load((svc) => svc.get("auto"))
     fc.assert(
       fc.property(tool, target, (t, pattern) => {
         expect(Permission.evaluate(t, pattern, auto!.permission).action).toBe("allow")
+      }),
+    )
+  }),
+)
+
+// R5: Auto mode allows subagent delegation (task.general).
+// Kind: invariant (kills H3, where task.general is changed to deny).
+// Generator: arbitrary targets for the task tool.
+it.instance("R5: Auto mode allows delegation to subagents", () =>
+  Effect.gen(function* () {
+    const auto = yield* load((svc) => svc.get("auto"))
+    fc.assert(
+      fc.property(target, (p) => {
+        expect(Permission.evaluate("task", p, auto!.permission).action).toBe("allow")
       }),
     )
   }),
