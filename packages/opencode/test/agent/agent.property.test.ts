@@ -12,6 +12,8 @@ import { Permission } from "../../src/permission"
 import { Plugin } from "../../src/plugin"
 import { Provider } from "../../src/provider/provider"
 import { Skill } from "../../src/skill"
+import { Global } from "@opencode-ai/core/global"
+import path from "path"
 
 fc.configureGlobal({ seed: 42 })
 
