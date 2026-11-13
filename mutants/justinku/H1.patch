@@ -1,0 +1,13 @@
+diff --git a/packages/opencode/src/permission/index.ts b/packages/opencode/src/permission/index.ts
+index 0eb0241..2ef70b9 100644
+--- a/packages/opencode/src/permission/index.ts
++++ b/packages/opencode/src/permission/index.ts
+@@ -42,7 +42,7 @@ const words = (command: string) => command.trim().split(/\s+/)
+ const flags = (command: string) => words(command).filter((word) => word.startsWith("-"))
+ 
+ // Number of non-wildcard characters, so "rm *" is more specific than "*".
+-const specificity = (pattern: string) => pattern.replace(/[*?]/g, "").length
++const specificity = (pattern: string) => pattern.replace(/\*/g, "").length
+ 
+ // Whether an approval applies to a command: every flag in the command must
+ // have been present in the command the user approved.

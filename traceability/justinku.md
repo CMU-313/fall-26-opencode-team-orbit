@@ -1,0 +1,160 @@
+# Traceability: justinku
+
+**Target feature:** Permission rules
+- `packages/opencode/src/permission/index.ts` (rule evaluation and "always" approvals)
+- `packages/opencode/src/util/wildcard.ts` (pattern matching)
+- `packages/opencode/src/permission/arity.ts`, `packages/opencode/src/tool/shell.ts` ("always" approvals)
+
+## Requirements
+
+| ID | Interview evidence | Requirement | Acceptance Criteria | Changed in P4? | Property (kind) | Test | Mutants it kills |
+|---|---|---|---|---|---|---|---|
+| R1 | O-4: "since `rm *` is more specific, so it should take precedence over `*` despite the order being swapped"; C-4: "yes they should behave the same" | When a command matches several rules for the same tool in the config, the most specific rule (the one with the most non-wildcard characters) decides the outcome, no matter what order the rules are written in. Ties are handled by R2. | With `{"*": "allow", "rm *": "deny"}` and with the same rules in the opposite order, `rm -rf /` evaluates to deny and `ls -la` evaluates to allow. | Yes | For any set of bash rules in any order, the result equals a simple reference that picks the most specific matching rule (model / oracle) | `packages/opencode/test/permission/permission.test.ts` — "R1: the most specific matching rule decides, whatever the rule order" | H1, H2; Stryker 61:14 |
+| R2 | S-4: "default should be to ask for tiebreaks"; C-4: "Deny should override" | When two rules for the same tool match a command, are equally specific (same number of non-wildcard characters), and have different actions, the most restrictive action wins no matter the order: deny beats ask, and ask beats allow. | With `{"git p*": "allow", "git *h": "deny"}` in either order, `git push` evaluates to deny. With `{"git p*": "allow", "git *h": "ask"}` in either order, `git push` evaluates to ask. | Yes | Two equally specific rules with different actions give the most restrictive action, and writing them in the opposite order does not change the result (metamorphic) | `packages/opencode/test/permission/permission.test.ts` — "R2: equally specific rules that disagree give the most restrictive action in either order" | H1, H2 |
+| R3 | S-2: "rm -rf should never run without asking"; O-2: "Any command that deletes data such as rm -rf should never run … not without a confirmation"; C-2: "Permission changing commands should never run without my knowledge first. Chmod" | A shell command whose command name is `rm`, `chmod`, or `chown` never runs without confirmation: if the rules or an earlier "always" approval would allow it, the result is ask. A deny rule still denies it. All other commands are unaffected. | With `{"*": "allow"}`, `rm -rf build`, `chmod 777 x.sh`, and `chown root x.sh` each evaluate to ask; `ls` evaluates to allow. With `{"*": "allow", "rm *": "deny"}`, `rm -rf build` evaluates to deny. After `rm old.txt` is approved with "always", `rm other.txt` still evaluates to ask. | Yes | For any config and any earlier "always" approvals, `rm`, `chmod` and `chown` (however the command is spaced) evaluate to exactly ask or deny, never allow; a deny rule still denies; other commands and other tools are unaffected (invariant) | `packages/opencode/test/permission/permission.test.ts` — "R3: rm, chmod and chown are never allowed without asking", "R3: a deny rule for rm, chmod or chown still denies", "R3: commands other than rm, chmod and chown are unaffected", "R3: the rm, chmod and chown rule applies only to shell commands" | H3 (and H1, H2 through the shared reference); Stryker 41:36, 65:7, 66:12, 66:31 |
+| R4 | S-3: "it should persist across sessions"; C-3: "still be in effect, but easily changeable"; O-3: "save across sessions, but easily be able to turn off" | An "always" approval persists after opencode restarts, and the user can revoke it. | Approve `git status` with "always"; restart opencode; `git status` runs with no prompt. Remove that approval; `git status` prompts again. | No | No property written (properties cover R1, R2, R3 and R5) | — | — (no property) |
+| R5 | S-5: "Don't add modifiers to the end of commands when generalizing an approval"; O-5: "I would want the coding agent to tell me when it does this" | After an "always" approval, a later command with the same command prefix (for example `git checkout`) runs without a prompt only if every flag in it (any argument starting with `-`, including `--`) also appeared in the approved command. Otherwise it is evaluated as if the approval did not exist. | Approve `git checkout feature-x` with "always". `git checkout main` runs without a prompt; `git checkout -- .` and `git checkout -f main` prompt. | Yes | After an "always" approval of one or more commands, a later command with the same prefix runs without a prompt exactly when every flag in it appeared in an approved command with that prefix; approvals for other tools are not restricted by flags (invariant) | `packages/opencode/test/permission/permission.test.ts` — "R5: an always approval does not cover flags that were not in the approved command", "R5: an always approval for a tool other than the shell is not restricted by flags" | H4, H5; Stryker 51:7, 51:24, 52:31, 188:13, 189:17, 189:47 |
+ 
+Properties written or suggested by opencode or another AI tool: R1, R2, R3, R5 (properties and generators drafted with Claude)
+
+
+## Requirement changes
+
+| ID | Original requirement (P3) | Revised requirement | Why it changed |
+|---|---|---|---|
+| R1 | When a command matches several rules, the last matching rule in the config decides the outcome. | When a command matches several rules for the same tool in the config, the most specific rule (the one with the most non-wildcard characters) decides the outcome, no matter what order the rules are written in. Ties are handled by R2. | It conflicts with R2: with `{"git *h": "deny", "git p*": "allow"}` the last matching rule is allow, but R2 says the result is never allow. It also conflicts with what interviewees asked for: C-4 and O-4 both said the two orderings of `"*": "allow"` and `"rm *": "deny"` should behave the same, and under "last match wins" the ordering `{"rm *": "deny", "*": "allow"}` lets `rm -rf build` run. The P3 row cited C-12, which does not exist in my interview notes, and its quote is not in my S-4 note, so the evidence is corrected to O-4 and C-4. The rule is limited to one tool's rules in the config because "always" approvals work by overriding the rules that came before them, so order still has to matter between the config and approvals. |
+| R2 | When two equally specific rules match a command with different actions, the result is never allow: it is deny if either rule says deny, otherwise ask. | When two rules for the same tool match a command, are equally specific (same number of non-wildcard characters), and have different actions, the most restrictive action wins no matter the order: deny beats ask, and ask beats allow. | "Equally specific" was never defined, so a test could not tell which pairs of rules the requirement applies to; it is now a character count (`git p*` and `git *h` both have 5). The original acceptance criteria only listed one ordering, which passes under "last match wins" by coincidence; the criteria now cover both orders so the requirement no longer depends on R1's old behavior. What the user needed is unchanged: ask on ties (S-4), with deny overriding (C-4). |
+| R3 | Commands that delete data or change file permissions (rm, chmod, chown) always require confirmation, even when a rule would allow them. | A shell command whose command name is `rm`, `chmod`, or `chown` never runs without confirmation: if the rules or an earlier "always" approval would allow it, the result is ask. A deny rule still denies it. All other commands are unaffected. | "Commands that delete data" has no boundary: the system cannot decide whether an arbitrary command deletes data (`git clean`, `find -delete`, any script), so the requirement is limited to the three commands interviewees named. "Always require confirmation" also turned a deny rule into a prompt, which is weaker than what O-2 asked for ("should never run"), so deny now stays deny. Finally it conflicted with R4: an "always" approval of `rm` would run later `rm` commands with no prompt, so the revision says approvals do not override it. |
+| R5 | The pattern generated by "always" must not match commands that carry flags or modifiers absent from the approved command. | After an "always" approval, a later command with the same command prefix (for example `git checkout`) runs without a prompt only if every flag in it (any argument starting with `-`, including `--`) also appeared in the approved command. Otherwise it is evaluated as if the approval did not exist. | The pattern language only has `*` and `?`, and `*` matches any text including flags, so no single pattern can match `git checkout main` while rejecting `git checkout -f main`. The requirement is restated as behavior at evaluation time instead of a property of the pattern. "Modifiers" was also undefined; a flag is now any argument that starts with `-`. What the user needed is unchanged: approving one command must not silently approve a more dangerous variant of it (S-5, O-5). |
+ 
+R4 is kept since its acceptance criteria are concrete and checkable (approve, restart, revoke), and with R3 revised to say that approvals do not override it, R4 no longer conflicts with any other requirement.
+
+## Hand-written mutants
+
+All five mutate `packages/opencode/src/permission/index.ts` and were written against commit `dce7308`. Patches are in `mutants/justinku/`. Predictions were recorded before running. Each mutant was run 5 times against `packages/opencode/test/permission/permission.test.ts` because the fast-check seed was not yet fixed. The "Actual result" column is the result against my Project 4 properties, before any strengthening; with the seed later fixed to 42 the outcome is the same (H2 and H4 killed; H1, H3 and H5 survive). The "Mutants it kills" column in the Requirements table shows the final state after strengthening.
+
+| ID | Requirement targeted | Change | Predicted killer | Actual result |
+|---|---|---|---|---|
+| H1 | R1 | `specificity()`: the regex that strips wildcards changed from `/[*?]/g` to `/\*/g`, so `?` is counted as a literal character and `git pus?` wrongly outranks `git pu*h` instead of tying with it | None. The R1 oracle should catch it in principle, but `patternFrom` only ever writes `*`, so no generated pattern contains `?` | Survived (5/5 runs), as predicted: the generator never produces a `?` pattern |
+| H2 | R2 | `fromConfig()`: the `\|\| STRICTNESS[a.action] - STRICTNESS[b.action]` tie-break removed from the sort, so equally specific rules keep the order they were written in and the last one wins | "R2: equally specific rules that disagree give the most restrictive action in either order", because it evaluates both orders and one of them must put the weaker action last. Possibly R1 as well, since its oracle applies the same tie-break | Killed by R2 (5/5 runs, within 1 to 2 test cases). R1 killed it in only 1 of 5 runs: its generator rarely produces two matching rules of equal specificity with different actions |
+| H3 | R3 | `evaluate()`: the command name is read with `pattern.split(" ")[0]` instead of `words(pattern)[0]`, so a command with leading whitespace or a tab after the name (` rm -rf build`, `rm\t-rf build`) is not recognized as `rm` and can be allowed silently | None. "R3: rm, chmod and chown are never allowed without asking" should catch it in principle, but `command()` always joins tokens with one space and no leading whitespace | Survived (5/5 runs), as predicted: every generated command is single-space separated with no leading whitespace |
+| H4 | R5 | `flags()`: `--` is no longer treated as a flag (`word.startsWith("-") && word !== "--"`), so approving `git checkout feature-x` with "always" lets `git checkout -- .` run without a prompt | "R5: an always approval does not cover flags that were not in the approved command", because `--` is in the test's `FLAGS` list and the test's own `flags` helper still counts it | Killed by R5 (5/5 runs, within 4 to 21 test cases) |
+| H5 | R5 | `reply()`: the `.filter((command) => Wildcard.match(command, pattern))` is dropped when recording an approval's flags, so for a request with several commands every approval gets the flags of all of them (approve `git checkout main && ls -f`, and `git checkout -f main` then runs without a prompt) | None. The R5 property should catch it in principle, but its `request()` helper always sends exactly one command, where the filter makes no difference | Survived (5/5 runs), as predicted: no generated request has more than one pattern |
+
+After strengthening (see Stryker comparison below), all five are killed with seed 42: H1 by R1 and R2 (patterns now use `?`), H2 by R1 and R2, H3 by "R3: rm, chmod and chown are never allowed without asking" (commands now have leading whitespace and tabs), H4 by R5, and H5 by R5 (requests now hold one or two commands). H1 and H2 also fail that R3 property, because its oracle now reuses the R1 reference.
+
+## Stryker comparison
+
+| Run | Killed | Timeout | Survived | Score (Stryker) | Score excluding equivalent mutants |
+|---|---|---|---|---|---|
+| Project 4 properties, seed 42 | 51 | 2 | 12 | 81.54% | 82.81% (53/64) |
+| Strengthened properties, seed 42 (final, committed report) | 62 | 2 | 1 | 98.46% | 100% (64/64) |
+
+### Comparison
+
+**Which hand-written mutants did Stryker never generate, and why not?** H1, H2, H3 and H4. Stryker applies a fixed list of syntactic operators and each of mine needs a change outside that list. H1 narrows a regex character class (`[*?]` to `\*`); Stryker's only regex mutant on that line negates the class (`[^*?]`), which breaks every pattern and is killed at once. H2 deletes the second half of the sort comparator; Stryker swaps `\|\|` for `&&` and `-` for `+` but never drops an operand. H3 swaps `words(pattern)[0]` for `pattern.split(" ")[0]`, replacing one helper with a near-equivalent, which no operator does (its closest mutant removes `.trim()` at 41:36, which has the same effect for leading whitespace only). H4 adds a special case for `--`, which needs to know that `--` is a flag that matters to users (S-5); Stryker only removes or flips existing code.
+
+**Which Stryker survivors would I never have thought of? Are any of them bugs a real developer might write?**
+- 66:12 `return {}` and 66:31 `action: ""` (the `rm` protection returning no action or an empty one). Not plausible, but exposed that my R3 assertion `not.toBe("allow")` accepts any garbage that is not the string "allow".
+- 65:7 and 188:13, `permission === SHELL` replaced by `true`. Plausible since a developer who forgets the `permission === SHELL` check makes the `rm` rule and the flag rule apply to file paths and URLs.
+- 51:7 and 51:24, `if (!allowed) return true` changed to `if (false)` and `return false`. Plausible and ensures that "always" approvals for non-shell tools stop working.
+
+**What does each approach find that the other doesn't** Hand-written mutants find bugs that need knowledge of the requirement, such as which characters are wildcards (H1), that ties need a second sort key (H2), or that `--` is a flag (H4). Stryker instead mutates every expression, exposing exposed weak assertions (`not.toBe("allow")`, a one-directional R5 check), and conditions my tests never reached.
+
+### Strengthening
+
+No example-based tests were added. Every survivor is killed by a changed generator, a stronger assertion, or a new property.
+
+| Survivor | Why it survived | Change that kills it |
+|---|---|---|
+| H1 | Generated patterns only used `*` | Generator: `patternFrom` now replaces characters with `*` or `?`, in the R1 scenario and in the R2 tie generator |
+| H3; Stryker 41:36 (`.trim()` removed) | Commands were always single-spaced with no leading whitespace | Generator: new `spaced()` commands with leading whitespace, tabs and double spaces, used by the R3 properties |
+| H5 = Stryker 189:17 | Every "always" request held one command | Generator: the R5 property now approves one or two commands in one request |
+| Stryker 52:31, 189:47 | R5 only asserted "if it runs, no flag was new", which is also true when nothing ever runs | Assertion: R5 now states both directions: the later command runs exactly when all its flags were in an approved command with the same prefix |
+| Stryker 66:12, 66:31 | R3 asserted `not.toBe("allow")` | Assertion: R3 now states the exact outcome (ask, or what the R1 reference gives when that is deny or ask) |
+| Stryker 61:14 | Properties only looked at the action | Assertion: R1 now also checks that the rule reported as deciding matches the command |
+| Stryker 65:7 | Only the `bash` tool was ever evaluated | New property: "R3: the rm, chmod and chown rule applies only to shell commands" |
+| Stryker 51:7, 51:24, 188:13 | Only shell approvals were ever made | New property: "R5: an always approval for a tool other than the shell is not restricted by flags" |
+
+### Equivalent mutants
+
+**41:57, `command.trim().split(/\s+/)` changed to `command.trim().split(/\s/)`.** The only difference is that a run of whitespace now produces empty strings between words. `words()` is used in two ways: `words(pattern)[0]`, and `flags()`, which keeps the words that start with `-`. After `.trim()` the first element is the same in both versions (the text before the first whitespace character), and an empty string never starts with `-`, so both callers return the same value for every input. No test can tell them apart.
+
+## Agent failure case
+ 
+**Property:** "R5: always approvals restrict bash flags (and don't restrict other tools)", written by opencode in a scratch file `packages/opencode/test/permission/agent.test.ts` (not committed). I asked for it during Project 5 and ran my hand-written mutants against it.
+ 
+**Transcript.** Share link: https://opncd.ai/share/Mk23vzlr
+ 
+> **Me:** Read requirement R5 in traceability/justinku.md and the code in packages/opencode/src/permission/index.ts. Write one fast-check property test for R5 in a new file packages/opencode/test/permission/agent.test.ts. Do not read or copy packages/opencode/test/permission/permission.test.ts.
+>
+> **opencode** (the property it wrote; setup code omitted):
+>
+> ```ts
+> test("R5: always approvals restrict bash flags (and don't restrict other tools)", async () => {
+>   await fc.assert(
+>     fc.asyncProperty(
+>       fc.constantFrom(...HEADS),
+>       fc.array(fc.constantFrom(...FLAGS, ...WORDS), { maxLength: 4 }),
+>       fc.array(fc.constantFrom(...FLAGS, ...WORDS), { maxLength: 4 }),
+>       async (head, approvedTail, laterTail) => {
+>         const approved = [...head, ...approvedTail]
+>         const later = [...head, ...laterTail]
+>
+>         const approvedFlags = approved.filter(isFlag)
+>         const laterFlags = later.filter(isFlag)
+>         const expectedBashRuns = laterFlags.every((flag) => approvedFlags.includes(flag))
+>
+>         const bashOutcome = await afterAlways("bash", approved, later)
+>         expect(bashOutcome).toBe(expectedBashRuns ? "runs" : "prompts")
+>
+>         // Invariant: for tools other than bash, later flags should not restrict the approval.
+>         const otherOutcome = await afterAlways("edit", approved, later)
+>         expect(otherOutcome).toBe("runs")
+>       },
+>     ),
+>     { seed: 42, numRuns: 40 },
+>   )
+> })
+> ```
+ 
+**The mutant that survived.** H4 (`mutants/justinku/H4.patch`), which stops treating `--` as a flag:
+ 
+```diff
+-const flags = (command: string) => words(command).filter((word) => word.startsWith("-"))
++const flags = (command: string) => words(command).filter((word) => word.startsWith("-") && word !== "--")
+```
+ 
+With H4 applied, approving `git checkout feature-x` with "always" lets `git checkout -- .` run without a prompt, which is the exact case from the interviews (S-5, O-5). opencode's property passes on it:
+ 
+```
+== H4
+ 1 pass
+ 0 fail
+ 80 expect() calls
+```
+ 
+H5 survives it too (every request holds one command, the same generator gap my own Project 4 property had). H1, H2 and H3 also pass, but they target R1, R2 and R3, which this property does not cover.
+ 
+**Why the property was too weak.** The assertion states both directions of R5, `--` is in its flag list, and it even checks that other tools are unaffected. The weakness is the run budget since opencode set `numRuns: 40` (fast-check's default is 100), and with seed 42 the first input that separates H4 from the real code is test number 66. To see H4, a run needs a later command that contains `--`, an approved command that does not, and every other flag in the later command already approved; that is a few percent of generated inputs, so 40 runs can miss it. The assertion was right and the generator could produce the input, but the property never ran long enough to reach it, and a green result gave no sign of that. The second weakness is the generator: every request holds exactly one command, so H5 cannot be reached at any run count.
+ 
+**Strengthened version.** My R5 property in `packages/opencode/test/permission/permission.test.ts`: the same two-direction assertion, the default 100 runs with seed 42, and a generator that approves one or two commands per request.
+ 
+```ts
+fc.asyncProperty(
+  fc.array(fc.tuple(fc.constantFrom(...HEADS), tail), { minLength: 1, maxLength: 2 }),
+  fc.nat(),
+  tail,
+  async (commands, pick, laterTail) => {
+    const approved = commands.map(([head, approvedTail]) => [...head, ...approvedTail])
+    const later = [...commands[pick % commands.length][0], ...laterTail]
+    const seen = approved.filter((tokens) => prefix(tokens) === prefix(later)).flatMap(flags)
+    const outcome = await afterAlways(request(...approved), request(later))
+    expect(outcome).toBe(flags(later).every((flag) => seen.includes(flag)) ? "runs" : "prompts")
+  },
+)
+```
+ 
+**Evidence it kills the mutant.**
+- Changing only `numRuns: 40` to `numRuns: 100` in opencode's property, with H4 applied, gives `Property failed after 66 tests`, `Counterexample: [["git","checkout"],[],["--"]]`: approve `git checkout`, then `git checkout --` runs without a prompt.
+- With H4 applied, my strengthened property fails: `(fail) R5: an always approval does not cover flags that were not in the approved command`. It also fails with H5 applied, which opencode's property cannot reach.
