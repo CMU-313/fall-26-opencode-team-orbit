@@ -15,6 +15,7 @@ import PROMPT_EXPLORE from "./prompt/explore.txt"
 import PROMPT_SUMMARY from "./prompt/summary.txt"
 import PROMPT_TITLE from "./prompt/title.txt"
 import { Permission } from "@/permission"
+import { Orient } from "@/command/orient"
 import { mergeDeep, pipe, sortBy, values } from "remeda"
 import { Global } from "@opencode-ai/core/global"
 import path from "path"
@@ -178,6 +179,16 @@ const layer = Layer.effect(
             ),
             mode: "primary",
             native: true,
+          },
+          orient: {
+            name: Orient.AGENT,
+            description:
+              "Read-only agent for /orient. Denies every edit and asks before any command except git status and git log.",
+            options: {},
+            permission: Orient.permission(defaults, user),
+            mode: "primary",
+            native: true,
+            hidden: true,
           },
           ask: {
             name: "ask",

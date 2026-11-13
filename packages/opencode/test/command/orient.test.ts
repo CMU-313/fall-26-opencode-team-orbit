@@ -33,11 +33,11 @@ describe("/orient command", () => {
     }),
   )
 
-  it.instance("runs under the read-only plan agent so it cannot edit files", () =>
+  it.instance("runs under the read-only orient agent so it cannot edit files", () =>
     Effect.gen(function* () {
       const command = yield* Command.Service
       const orient = yield* command.get(Command.Default.ORIENT)
-      expect(orient?.agent).toBe("plan")
+      expect(orient?.agent).toBe("orient")
     }),
   )
 

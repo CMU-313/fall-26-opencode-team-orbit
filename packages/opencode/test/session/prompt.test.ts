@@ -2463,6 +2463,38 @@ it.instance(
 )
 
 it.instance(
+  "/orient hands the model the files it chose and runs under the orient agent",
+  () =>
+    Effect.gen(function* () {
+      const { llm } = yield* useServerConfig(providerCfg)
+      const { prompt, chat } = yield* boot()
+      const { directory: dir } = yield* TestInstance
+      yield* Effect.promise(() =>
+        Promise.all([
+          Bun.write(path.join(dir, "README.md"), "# demo"),
+          Bun.write(path.join(dir, "tests", "add.test.ts"), "export {}"),
+        ]),
+      )
+      yield* llm.text("A summary.")
+
+      const result = yield* prompt.command({
+        sessionID: chat.id,
+        command: Command.Default.ORIENT,
+        arguments: "focus on the test setup",
+      })
+
+      const sent = JSON.stringify((yield* llm.inputs).at(-1)?.messages)
+      expect(sent).toContain("- README.md")
+      expect(sent).toContain("- tests/add.test.ts")
+      expect(sent).toContain("Files read: README.md")
+      expect(sent).not.toContain("No README was found")
+      expect(result.info.role).toBe("assistant")
+      if (result.info.role === "assistant") expect(result.info.agent).toBe("orient")
+    }),
+  30_000,
+)
+
+it.instance(
   "/important returns an error instead of crashing when the model call fails",
   () =>
     Effect.gen(function* () {

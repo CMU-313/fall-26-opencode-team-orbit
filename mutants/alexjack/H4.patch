@@ -1,0 +1,18 @@
+diff --git a/packages/opencode/src/command/orient.ts b/packages/opencode/src/command/orient.ts
+index 71dac28..5b86970 100644
+--- a/packages/opencode/src/command/orient.ts
++++ b/packages/opencode/src/command/orient.ts
+@@ -55,9 +55,10 @@ const FOCUS_LIMIT = 6
+ // The model does not choose them, so two runs on the same repository read the
+ // same files.
+ export function select(input: { files: string[]; focus: string }) {
+-  // Sorting a de-duplicated copy makes the result independent of the order the
+-  // filesystem happens to list files in.
+-  const files = [...new Set(input.files.map((file) => file.replaceAll("\\", "/")))]
++  // Sorting a copy makes the result independent of the order the filesystem
++  // happens to list files in.
++  const files = input.files
++    .map((file) => file.replaceAll("\\", "/"))
+     .filter((file) => !SKIPPED.test(file))
+     .sort()
+   const readme = files.filter((file) => README.test(file))
