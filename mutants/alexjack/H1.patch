@@ -1,14 +1,26 @@
 diff --git a/packages/opencode/src/command/orient.ts b/packages/opencode/src/command/orient.ts
-index 71dac28..cf98294 100644
+index 71dac28..ee9331c 100644
 --- a/packages/opencode/src/command/orient.ts
 +++ b/packages/opencode/src/command/orient.ts
-@@ -27,10 +27,8 @@ export function permission(defaults: PermissionV1.Ruleset, user: PermissionV1.Ru
-         ...Object.fromEntries(UNSAFE.map((token) => [`*${token}*`, "ask" as const])),
-       },
-     }),
+@@ -19,18 +19,12 @@ const UNSAFE = [">", "<", "|", ";", "&", "$", "`", "(", "\n", "--output"]
+ export function permission(defaults: PermissionV1.Ruleset, user: PermissionV1.Ruleset) {
+   return Permission.merge(
+     defaults,
+-    Permission.fromConfig({
+-      bash: {
+-        "*": "ask",
+-        "git status *": "allow",
+-        "git log *": "allow",
+-        ...Object.fromEntries(UNSAFE.map((token) => [`*${token}*`, "ask" as const])),
+-      },
+-    }),
 -    user,
 -    // Placed after the user's rules so that no config can let /orient write files
 -    // or hand the work to a subagent that can.
++    Permission.fromConfig({ bash: { "*": "ask", "git status *": "allow", "git log *": "allow" } }),
++    // A ruleset of their own, so they stay after the allow rules however
++    // fromConfig orders the rules inside one ruleset (it sorts by specificity).
++    Permission.fromConfig({ bash: Object.fromEntries(UNSAFE.map((token) => [`*${token}*`, "ask" as const])) }),
      Permission.fromConfig({ edit: "deny", task: "deny" }),
 +    user,
    )
