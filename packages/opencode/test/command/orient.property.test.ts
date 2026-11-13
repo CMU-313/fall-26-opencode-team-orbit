@@ -7,12 +7,14 @@
 
 import { afterAll, afterEach, expect, test } from "bun:test"
 import fc from "fast-check"
-import { Effect } from "effect"
+import { Effect, Layer } from "effect"
 import { LayerNode } from "@opencode-ai/core/effect/layer-node"
+import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import { disposeAllInstances } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
 import { Agent } from "../../src/agent/agent"
 import { Auth } from "../../src/auth"
+import { Command } from "../../src/command"
 import { Orient } from "../../src/command/orient"
 import { Config } from "../../src/config/config"
 import { RuntimeFlags } from "../../src/effect/runtime-flags"
@@ -22,11 +24,28 @@ import { Provider } from "../../src/provider/provider"
 import { Skill } from "../../src/skill"
 
 const it = testEffect(
-  LayerNode.compile(
-    LayerNode.group([Agent.node, Plugin.node, Provider.node, Auth.node, Config.node, Skill.node, RuntimeFlags.node]),
-    [[RuntimeFlags.node, RuntimeFlags.layer({})]],
+  Layer.mergeAll(
+    LayerNode.compile(
+      LayerNode.group([
+        Agent.node,
+        Command.node,
+        Plugin.node,
+        Provider.node,
+        Auth.node,
+        Config.node,
+        Skill.node,
+        RuntimeFlags.node,
+      ]),
+      [[RuntimeFlags.node, RuntimeFlags.layer({})]],
+    ),
+    LayerNode.compile(CrossSpawnSpawner.node),
   ),
 )
+
+// A fixed seed makes every run generate the same cases, so a mutant that is
+// killed once is killed every time. Recorded in the Stryker comparison section
+// of traceability/alexjack.md.
+fc.configureGlobal({ seed: 42 })
 
 afterEach(async () => {
   await disposeAllInstances()
@@ -171,8 +190,11 @@ const decide = (permission: string, pattern: string, user: Parameters<typeof Ori
 // Kind: invariant
 test("R1 (invariant): no path can be edited, whatever the user's config says", () => {
   fc.assert(
-    fc.property(userRules, path, (user, target) => {
+    fc.property(userRules, path, fc.constantFrom("general", "explore", "orient", "*"), (user, target, subagent) => {
       expect(decide("edit", target, user)).toBe("deny")
+      // Nor can /orient hand the work to a subagent that could edit (P5: a
+      // Stryker mutant blanked the task rule and nothing noticed).
+      expect(decide("task", subagent, user)).toBe("deny")
     }),
   )
 })
@@ -182,7 +204,11 @@ test("R1 (invariant): no path can be edited, whatever the user's config says", (
 // Kind: invariant (R1), model/oracle (R2)
 it.instance("R1, R2 (wiring): the agent /orient is bound to denies edits and only runs read-only git unasked", () =>
   Effect.gen(function* () {
-    const agent = yield* Agent.Service.use((svc) => svc.get(Orient.AGENT))
+    // Resolved through the command registry, so binding /orient to another
+    // agent fails here (P5: hand-written mutant H7 survived the old lookup).
+    const cmd = yield* Command.Service.use((svc) => svc.get(Command.Default.ORIENT))
+    expect(cmd?.agent).toBe(Orient.AGENT)
+    const agent = yield* Agent.Service.use((svc) => svc.get(cmd!.agent!))
     expect(agent).toBeDefined()
     fc.assert(
       fc.property(path, (target) => {
@@ -206,6 +232,13 @@ test("R2 (model/oracle): a command runs unasked only if it is read-only git", ()
       expect(decide("bash", input)).toBe(readOnlyGit(input) ? "allow" : "ask")
     }),
   )
+  // Drawn on its own so every unsafe token is tried against every read-only git
+  // command each run (P5: H2 was caught only when the mixed generator drew it).
+  fc.assert(
+    fc.property(disguisedCommand, (input) => {
+      expect(decide("bash", input)).toBe("ask")
+    }),
+  )
 })
 
 // R2: install and test commands never run on their own.
@@ -226,12 +259,21 @@ test("R2 (metamorphic): adding arguments to an install or test command never mak
 // commands from ask to deny and changes nothing else)
 test("R3 (metamorphic): a user deny rule turns ask into deny for that tool and leaves the rest unchanged", () => {
   fc.assert(
-    fc.property(fc.constantFrom("npm", "bun", "rm", "make"), command, (tool, input) => {
-      const denied = Permission.fromConfig({ bash: { [`${tool} *`]: "deny" } })
-      const targeted = input === tool || input.startsWith(tool + " ")
-      expect(decide("bash", input, denied)).toBe(targeted ? "deny" : decide("bash", input))
-      if (!readOnlyGit(input)) expect(decide("bash", input, denied)).not.toBe("allow")
-    }),
+    fc.property(
+      fc.constantFrom("npm", "bun", "rm", "make"),
+      fc.constantFrom("", " install", " test", " -rf node_modules", " run build"),
+      fc.string(),
+      command,
+      (tool, verb, tail, input) => {
+        const denied = Permission.fromConfig({ bash: { [`${tool} *`]: "deny" } })
+        // A command naming the denied tool is denied however it continues (P5:
+        // the mixed generator did not draw one every run, so H3 survived once).
+        expect(decide("bash", `${tool}${verb}${tail ? " " + tail : ""}`, denied)).toBe("deny")
+        const targeted = input === tool || input.startsWith(tool + " ")
+        expect(decide("bash", input, denied)).toBe(targeted ? "deny" : decide("bash", input))
+        if (!readOnlyGit(input)) expect(decide("bash", input, denied)).not.toBe("allow")
+      },
+    ),
   )
 })
 
@@ -242,20 +284,46 @@ test("R3 (metamorphic): a user deny rule turns ask into deny for that tool and l
 // properties compare against, so the module cannot pass by agreeing with itself.
 
 const READMES = ["README.md", "README", "readme.rst"]
-const MANIFESTS = ["package.json", "pyproject.toml", "Cargo.toml", "go.mod"]
+const MANIFESTS = [
+  "package.json",
+  "pyproject.toml",
+  "Cargo.toml",
+  "go.mod",
+  "pom.xml",
+  "build.gradle",
+  "Gemfile",
+  "composer.json",
+]
 const ENTRYPOINTS = ["src/index.ts", "main.py", "cmd/main.go", "app.js"]
 // Files a "test" focus should bring in (S-10).
-const TESTS = ["tests/unit/add.test.ts", "test/setup.ts", "src/__tests__/api.test.js", "tests/conftest.py"]
+const TESTS = [
+  "tests/unit/add.test.ts",
+  "test/setup.ts",
+  "src/__tests__/api.test.js",
+  "tests/conftest.py",
+  "tests/integration/db.test.ts",
+  "test/fixtures/users.json",
+  "spec/test_helper.rb",
+]
 // docs/README.md is a README that is not at the root, so it must not count as
 // one (R7). src/latest.ts contains "test" inside a word and must not match (R6).
+// README.md.bak, app.js.map and src/utils/index.ts are near misses of the
+// README and entry point names; about.md, how-to.md and whats-new.md are named
+// after words in the command's own phrasing (P5: Stryker survivors).
 const ORDINARY = [
   "docs/guide.md",
   "docs/README.md",
+  "README.md.bak",
   "LICENSE",
   "src/utils/format.ts",
+  "src/utils/index.ts",
   "src/latest.ts",
   "src/db/schema.sql",
+  "app.js.map",
   "notes.txt",
+  "docs/about.md",
+  "docs/how-to.md",
+  "docs/whats-new.md",
 ]
 // Never worth reading. node_modules/tests/index.js looks like a test file.
 const GENERATED = [
@@ -266,15 +334,48 @@ const GENERATED = [
   ".git/config",
 ]
 
+const none = fc.constant([] as string[])
 const repo = fc
-  .record({
-    readme: fc.subarray(READMES),
-    manifest: fc.subarray(MANIFESTS),
-    entry: fc.subarray(ENTRYPOINTS),
-    tests: fc.subarray(TESTS),
-    ordinary: fc.subarray(ORDINARY),
-    generated: fc.subarray(GENERATED),
-  })
+  .oneof(
+    {
+      weight: 9,
+      arbitrary: fc.record({
+        readme: fc.subarray(READMES),
+        manifest: fc.subarray(MANIFESTS),
+        entry: fc.subarray(ENTRYPOINTS),
+        tests: fc.subarray(TESTS),
+        ordinary: fc.subarray(ORDINARY),
+        generated: fc.subarray(GENERATED),
+      }),
+    },
+    // One repository in ten has nothing /orient recognises, so the fallback to
+    // the first files is exercised (P5: with the bigger manifest pool, seed 42
+    // never drew that case and the fallback mutants survived).
+    {
+      weight: 1,
+      arbitrary: fc.record({
+        readme: none,
+        manifest: none,
+        entry: none,
+        tests: fc.subarray(TESTS),
+        ordinary: fc.subarray(ORDINARY),
+        generated: fc.subarray(GENERATED),
+      }),
+    },
+    // One in ten has no readable file at all, so the "Files read: none" case is
+    // exercised (P5: three Stryker mutants of that branch survived).
+    {
+      weight: 1,
+      arbitrary: fc.record({
+        readme: none,
+        manifest: none,
+        entry: none,
+        tests: none,
+        ordinary: none,
+        generated: fc.subarray(GENERATED),
+      }),
+    },
+  )
   .chain((parts) => {
     const real = [...parts.readme, ...parts.manifest, ...parts.entry, ...parts.tests, ...parts.ordinary]
     const all = [...real, ...parts.generated]
@@ -282,7 +383,12 @@ const repo = fc
   })
 
 const testFocus = fc.constantFrom("focus on the test setup", "tests", "the TEST suite", "test")
-const anyFocus = fc.oneof(fc.constant(""), testFocus, fc.string())
+// Focuses that name a file /orient reads anyway (P5: H5 listed the README twice
+// and no generated focus ever asked for it).
+const baseFocus = fc.constantFrom("focus on the readme", "package.json", "the main entry point", "src")
+// Words from the command's own phrasing, which must not select files.
+const FILLER = ["focus on the", "please", "what about this and that", "how about", "for this with that"]
+const anyFocus = fc.oneof(fc.constant(""), testFocus, baseFocus, fc.constantFrom(...FILLER), fc.string())
 
 // ---------- properties: file selection (R4-R7) ----------
 
@@ -301,7 +407,17 @@ test("R4 (invariant): the Files read line names real, existing, non-generated fi
         expect(GENERATED).not.toContain(file)
       }
       const lines = Orient.brief(selection).split("\n")
+      for (const file of selection.files) expect(lines).toContain(`- ${file}`)
       expect(lines.at(-1)).toBe("Files read: " + (selection.files.length > 0 ? selection.files.join(", ") : "none"))
+      // The README, manifest and entry point are the files interviewees named
+      // (O-1, C-9, S-3), so without a focus they are what is read, at most six
+      // of them; with none of them, the first three files are read instead
+      // (P5: Stryker could drop the entry point rule or always fall back).
+      const plain = Orient.select({ files: input.files, focus: "" })
+      const known = [...input.readme, ...input.manifest, ...input.entry]
+      expect(plain.files.filter((file) => known.includes(file)).length).toBe(Math.min(known.length, 6))
+      if (known.length > 0) for (const file of plain.files) expect(known).toContain(file)
+      if (known.length === 0) expect(plain.files.length).toBe(Math.min(input.real.length, 3))
     }),
   )
 })
@@ -321,7 +437,11 @@ test("R5 (metamorphic): the selection does not depend on listing order or duplic
       ),
       anyFocus,
       (input, focus) => {
-        expect(Orient.select({ files: input.again, focus })).toEqual(Orient.select({ files: input.files, focus }))
+        const once = Orient.select({ files: input.files, focus })
+        expect(Orient.select({ files: input.again, focus })).toEqual(once)
+        // The same listing with Windows separators (P5: Stryker removed the
+        // backslash normalisation and no generated path had one).
+        expect(Orient.select({ files: input.files.map((file) => file.replaceAll("/", "\\")), focus })).toEqual(once)
       },
     ),
   )
@@ -332,13 +452,22 @@ test("R5 (metamorphic): the selection does not depend on listing order or duplic
 // Kind: metamorphic (adding a focus only adds files, and only matching ones)
 test("R6 (metamorphic): a focus adds matching files and never drops a base file", () => {
   fc.assert(
-    fc.property(repo, testFocus, fc.string(), (input, focus, noise) => {
+    fc.property(repo, testFocus, fc.string(), fc.constantFrom(...FILLER), (input, focus, noise, filler) => {
       const plain = Orient.select({ files: input.files, focus: "" })
       const focused = Orient.select({ files: input.files, focus })
       expect(focused.files.slice(0, plain.files.length)).toEqual(plain.files)
       for (const file of focused.files.slice(plain.files.length)) expect(TESTS).toContain(file)
-      if (input.tests.length > 0) expect(focused.files.some((file) => TESTS.includes(file))).toBe(true)
+      // Every test file that is not already a base file is added, up to six, so a
+      // focus cannot turn a quick orientation into reading the whole repo (P5:
+      // "at least one" let Stryker drop the plural rule, since one file sufficed).
+      const candidates = input.tests.filter((file) => !plain.files.includes(file))
+      expect(focused.files.length - plain.files.length).toBe(Math.min(candidates.length, 6))
       expect(Orient.brief(focused).split("\n").at(-1)).toBe(Orient.footer(focused))
+      // The command's own phrasing is not a focus: "focus on the tests" reads the
+      // same files as "tests", and filler alone reads the same files as no focus
+      // (P5: Stryker blanked the ignored words and nothing noticed).
+      expect(Orient.select({ files: input.files, focus: `${filler} ${focus}` })).toEqual(focused)
+      expect(Orient.select({ files: input.files, focus: filler })).toEqual(plain)
       // Any other focus text may add files but still keeps the base files.
       expect(Orient.select({ files: input.files, focus: noise }).files.slice(0, plain.files.length)).toEqual(
         plain.files,

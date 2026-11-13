@@ -1,0 +1,13 @@
+diff --git a/packages/opencode/src/command/index.ts b/packages/opencode/src/command/index.ts
+index 13b51fa..cce91d4 100644
+--- a/packages/opencode/src/command/index.ts
++++ b/packages/opencode/src/command/index.ts
+@@ -109,7 +109,7 @@ const layer = Layer.effect(
+         name: Default.ORIENT,
+         description: "summarize what this project is and does",
+         source: "command",
+-        agent: Orient.AGENT,
++        agent: "plan",
+         get template() {
+           return PROMPT_ORIENT.replace("${path}", ctx.worktree)
+         },

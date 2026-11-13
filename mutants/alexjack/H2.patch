@@ -1,0 +1,13 @@
+diff --git a/packages/opencode/src/command/orient.ts b/packages/opencode/src/command/orient.ts
+index 71dac28..4b2e2b4 100644
+--- a/packages/opencode/src/command/orient.ts
++++ b/packages/opencode/src/command/orient.ts
+@@ -14,7 +14,7 @@ export const NO_README = "No README was found in this repository."
+ // A redirect, a chained command, or git's own --output flag turns a read-only git
+ // command into one that can write a file or run something else, so a command
+ // containing any of these goes back behind a permission prompt.
+-const UNSAFE = [">", "<", "|", ";", "&", "$", "`", "(", "\n", "--output"]
++const UNSAFE = [">", "<", "|", ";", "&", "$", "`", "(", "\n"]
+ 
+ export function permission(defaults: PermissionV1.Ruleset, user: PermissionV1.Ruleset) {
+   return Permission.merge(
