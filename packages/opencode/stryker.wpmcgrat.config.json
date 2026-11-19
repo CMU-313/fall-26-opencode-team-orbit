@@ -1,0 +1,15 @@
+{
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "bun test test/helpme/helpme.property.test.ts"
+  },
+  "mutate": [
+    "src/command/index.ts:55-112"
+  ],
+  "coverageAnalysis": "off",
+  "reporters": [
+    "html",
+    "clear-text",
+    "progress"
+  ]
+}
