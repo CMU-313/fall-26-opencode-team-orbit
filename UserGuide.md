@@ -10,7 +10,7 @@ This guide covers the features Team Orbit added to opencode, how to use and manu
 
 `/orient` is a built-in slash command that gives a 3 to 5 sentence plain-language summary of the current project: what it is, the problem it solves, who it is for, the main technology, and one or two places a newcomer should look first. It is meant for a student opening an unfamiliar codebase for the first time.
 
-The command runs under the `plan` agent, which denies every edit tool, so it can only read files and list directories. It never creates or modifies anything.
+The command runs under its own `orient` agent. That agent denies every edit for every path, whatever your permission config says, and it asks before running any shell command except plain `git status` and `git log`. `/orient` also chooses the files to read itself (root README, root manifest, common entrypoints, plus files matching your focus) and tells the model to end with a `Files read:` line naming them.
 
 It reads sources in this order and stops as soon as it has enough:
 
@@ -25,7 +25,7 @@ It reads sources in this order and stops as soon as it has enough:
    bun dev .
    ```
 2. Type `/or` and confirm `/orient` appears in the autocomplete list with the description "summarize what this project is and does".
-3. Press Enter to run it. The session switches to Plan mode and the model replies with a short prose summary that names the files it relied on.
+3. Press Enter to run it. The model replies with a short prose summary, followed by a `Files read:` line naming the files `/orient` chose.
 4. Optionally pass a focus after the command, for example `/orient focus on the testing setup`. The focus is honored if present and ignored if blank.
 
 ### How to user test it
@@ -54,7 +54,7 @@ Each test maps to an acceptance criterion from issue #7:
 | --- | --- | --- |
 | is registered as a built-in command | `/orient` is in the command registry the TUI builds its help and autocomplete from. | Shows up in the help list |
 | shows a description in the help list | The description string and `command` source are set. | Shows up in the help list |
-| runs under the read-only plan agent | The command is bound to the `plan` agent. Combined with the existing `plan agent denies edits` test in `test/agent/agent.test.ts`, this proves the command cannot write files. | Does not create or modify files |
+| runs under the read-only orient agent | The command is bound to the `orient` agent. The properties in `test/command/orient.property.test.ts` check that this agent denies every edit. | Does not create or modify files |
 | points the prompt at the current repo | `${path}` is substituted with the real worktree path, using a real temporary git repo. | Summarizes the current project |
 | asks for a 3 to 5 sentence summary | The prompt demands exactly 3 to 5 sentences about what the project is and does. | README repo returns a 3 to 5 sentence summary |
 | reads the README first | README is step 1 of the investigation order. | README repo returns a summary |

@@ -283,7 +283,7 @@ test("evaluate - exact pattern match", () => {
 })
 
 test("evaluate - wildcard pattern match", () => {
-  const result = Permission.evaluate("bash", "rm", [{ permission: "bash", pattern: "*", action: "allow" }])
+  const result = Permission.evaluate("bash", "ls", [{ permission: "bash", pattern: "*", action: "allow" }])
   expect(result.action).toBe("allow")
 })
 
@@ -296,8 +296,8 @@ test("evaluate - last matching rule wins", () => {
 })
 
 test("evaluate - last matching rule wins (wildcard after specific)", () => {
-  const result = Permission.evaluate("bash", "rm", [
-    { permission: "bash", pattern: "rm", action: "deny" },
+  const result = Permission.evaluate("bash", "ls", [
+    { permission: "bash", pattern: "ls", action: "deny" },
     { permission: "bash", pattern: "*", action: "allow" },
   ])
   expect(result.action).toBe("allow")
@@ -400,7 +400,7 @@ test("evaluate - glob permission pattern", () => {
 })
 
 test("evaluate - specific permission and wildcard permission combined", () => {
-  const result = Permission.evaluate("bash", "rm", [
+  const result = Permission.evaluate("bash", "ls", [
     { permission: "*", pattern: "*", action: "deny" },
     { permission: "bash", pattern: "*", action: "allow" },
   ])

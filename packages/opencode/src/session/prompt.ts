@@ -25,6 +25,7 @@ import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
 import { CrossSpawnSpawner } from "@opencode-ai/core/cross-spawn-spawner"
 import * as Stream from "effect/Stream"
 import { Command } from "../command"
+import { Orient } from "@/command/orient"
 import { pathToFileURL, fileURLToPath } from "url"
 import { Config } from "@/config/config"
 import { ConfigMarkdown } from "@/config/markdown"
@@ -1407,6 +1408,21 @@ const layer = Layer.effect(
         template = template.replace(bashRegex, () => results[index++])
       }
       template = template.trim()
+
+      if (cmd.name === Command.Default.ORIENT) {
+        const ctx = yield* InstanceState.context
+        // Outside a git repository the worktree is the filesystem root, so list the working directory instead.
+        const root = path.parse(ctx.worktree).root === ctx.worktree ? ctx.directory : ctx.worktree
+        // Three levels is enough to see the README, manifest, and entrypoints without walking node_modules.
+        const listed = yield* Effect.promise(() =>
+          Promise.all(
+            ["*", "*/*", "*/*/*"].map((pattern) =>
+              Array.fromAsync(new Bun.Glob(pattern).scan({ cwd: root, dot: true, onlyFiles: true })),
+            ),
+          ),
+        )
+        template = template + "\n\n" + Orient.brief(Orient.select({ files: listed.flat(), focus: input.arguments }))
+      }
 
       const taskModel = yield* Effect.gen(function* () {
         if (cmd.model) return Provider.parseModel(cmd.model)

@@ -1,0 +1,13 @@
+diff --git a/packages/opencode/src/permission/index.ts b/packages/opencode/src/permission/index.ts
+index 0eb0241..21b823b 100644
+--- a/packages/opencode/src/permission/index.ts
++++ b/packages/opencode/src/permission/index.ts
+@@ -244,7 +244,7 @@ export function fromConfig(permission: ConfigPermissionV1.Info) {
+       ...Object.entries(value)
+         .map(([pattern, action]) => ({ permission: key, pattern: expand(pattern), action }))
+         .toSorted(
+-          (a, b) => specificity(a.pattern) - specificity(b.pattern) || STRICTNESS[a.action] - STRICTNESS[b.action],
++          (a, b) => specificity(a.pattern) - specificity(b.pattern),
+         ),
+     )
+   }

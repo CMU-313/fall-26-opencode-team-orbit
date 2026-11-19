@@ -1,0 +1,13 @@
+diff --git a/packages/opencode/src/permission/index.ts b/packages/opencode/src/permission/index.ts
+index 0eb0241..27cfb30 100644
+--- a/packages/opencode/src/permission/index.ts
++++ b/packages/opencode/src/permission/index.ts
+@@ -62,7 +62,7 @@ export function evaluate(permission: string, pattern: string, ...rulesets: Permi
+   }
+   // rm, chmod and chown are never allowed silently: an allow becomes an ask.
+   // A deny is left alone.
+-  if (permission === SHELL && rule.action === "allow" && PROTECTED.has(words(pattern)[0])) {
++  if (permission === SHELL && rule.action === "allow" && PROTECTED.has(pattern.split(" ")[0])) {
+     return { ...rule, action: "ask" }
+   }
+   return rule

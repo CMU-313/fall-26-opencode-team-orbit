@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "command",
+  "commandRunner": { "command": "bun test --timeout 30000 test/permission/permission.test.ts" },
+  "mutate": [
+    "src/permission/index.ts:33-69",
+    "src/permission/index.ts:104-109",
+    "src/permission/index.ts:181-192",
+    "src/permission/index.ts:243-249"
+  ],
+  "coverageAnalysis": "off",
+  "reporters": ["html", "clear-text", "progress"]
+}

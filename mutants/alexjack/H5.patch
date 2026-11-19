@@ -1,0 +1,13 @@
+diff --git a/packages/opencode/src/command/orient.ts b/packages/opencode/src/command/orient.ts
+index 71dac28..35e6fc3 100644
+--- a/packages/opencode/src/command/orient.ts
++++ b/packages/opencode/src/command/orient.ts
+@@ -68,7 +68,7 @@ export function select(input: { files: string[]; focus: string }) {
+   const words = (input.focus.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter(
+     (word) => word.length > 2 && !IGNORED_WORDS.has(word),
+   )
+-  const focused = files.filter((file) => !base.includes(file) && mentions(file, words)).slice(0, FOCUS_LIMIT)
++  const focused = files.filter((file) => mentions(file, words)).slice(0, FOCUS_LIMIT)
+   return { files: [...base, ...focused], readme: readme.length > 0, manifest: manifest.length > 0 }
+ }
+ 

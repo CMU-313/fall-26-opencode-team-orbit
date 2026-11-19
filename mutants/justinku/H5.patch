@@ -1,0 +1,13 @@
+diff --git a/packages/opencode/src/permission/index.ts b/packages/opencode/src/permission/index.ts
+index 0eb0241..245a23e 100644
+--- a/packages/opencode/src/permission/index.ts
++++ b/packages/opencode/src/permission/index.ts
+@@ -186,7 +186,7 @@ const layer = Layer.effect(
+           // Remember the flags of the command(s) the user actually approved.
+           flags:
+             existing.info.permission === SHELL
+-              ? existing.info.patterns.filter((command) => Wildcard.match(command, pattern)).flatMap(flags)
++              ? existing.info.patterns.flatMap(flags)
+               : undefined,
+         })
+       }

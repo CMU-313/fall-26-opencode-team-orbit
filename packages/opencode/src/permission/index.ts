@@ -22,19 +22,50 @@ interface PendingEntry {
 
 interface State {
   pending: Map<PermissionV1.ID, PendingEntry>
-  approved: PermissionV1.Rule[]
+  approved: Approval[]
+}
+
+// An "always" approval. For shell commands it also remembers which flags the
+// approved command used, so it does not cover later commands that add new ones.
+type Approval = PermissionV1.Rule & { flags?: string[] }
+
+// Permission name the shell tool asks with.
+const SHELL = "bash"
+
+// Shell commands that never run without confirmation, even when a rule or an
+// earlier "always" approval would allow them.
+const PROTECTED = new Set(["rm", "chmod", "chown"])
+
+const STRICTNESS = { allow: 0, ask: 1, deny: 2 }
+
+const words = (command: string) => command.trim().split(/\s+/)
+const flags = (command: string) => words(command).filter((word) => word.startsWith("-"))
+
+// Number of non-wildcard characters, so "rm *" is more specific than "*".
+const specificity = (pattern: string) => pattern.replace(/[*?]/g, "").length
+
+// Whether an approval applies to a command: every flag in the command must
+// have been present in the command the user approved.
+function covers(approval: Approval, command: string) {
+  const allowed = approval.flags
+  if (!allowed) return true
+  return flags(command).every((flag) => allowed.includes(flag))
 }
 
 export function evaluate(permission: string, pattern: string, ...rulesets: PermissionV1.Ruleset[]): PermissionV1.Rule {
-  return (
-    rulesets
-      .flat()
-      .findLast((rule) => Wildcard.match(permission, rule.permission) && Wildcard.match(pattern, rule.pattern)) ?? {
-      action: "ask",
-      permission,
-      pattern: "*",
-    }
-  )
+  const rule = rulesets
+    .flat()
+    .findLast((rule) => Wildcard.match(permission, rule.permission) && Wildcard.match(pattern, rule.pattern)) ?? {
+    action: "ask",
+    permission,
+    pattern: "*",
+  }
+  // rm, chmod and chown are never allowed silently: an allow becomes an ask.
+  // A deny is left alone.
+  if (permission === SHELL && rule.action === "allow" && PROTECTED.has(words(pattern)[0])) {
+    return { ...rule, action: "ask" }
+  }
+  return rule
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/Permission") {}
@@ -70,7 +101,12 @@ const layer = Layer.effect(
       let needsAsk = false
 
       for (const pattern of request.patterns) {
-        const rule = evaluate(request.permission, pattern, ruleset, approved)
+        const rule = evaluate(
+          request.permission,
+          pattern,
+          ruleset,
+          approved.filter((approval) => covers(approval, pattern)),
+        )
         yield* Effect.logInfo("evaluated", { permission: request.permission, pattern, action: rule })
         if (rule.action === "deny") {
           return yield* new PermissionV1.DeniedError({
@@ -147,13 +183,23 @@ const layer = Layer.effect(
           permission: existing.info.permission,
           pattern,
           action: "allow",
+          // Remember the flags of the command(s) the user actually approved.
+          flags:
+            existing.info.permission === SHELL
+              ? existing.info.patterns.filter((command) => Wildcard.match(command, pattern)).flatMap(flags)
+              : undefined,
         })
       }
 
       for (const [id, item] of pending.entries()) {
         if (item.info.sessionID !== existing.info.sessionID) continue
         const ok = item.info.patterns.every(
-          (pattern) => evaluate(item.info.permission, pattern, approved).action === "allow",
+          (pattern) =>
+            evaluate(
+              item.info.permission,
+              pattern,
+              approved.filter((approval) => covers(approval, pattern)),
+            ).action === "allow",
         )
         if (!ok) continue
         pending.delete(id)
@@ -190,8 +236,16 @@ export function fromConfig(permission: ConfigPermissionV1.Info) {
       ruleset.push({ permission: key, action: value, pattern: "*" })
       continue
     }
+    // Rules for one tool are ordered so that the order they were written in
+    // does not matter: evaluate() takes the last matching rule, so the most
+    // specific pattern goes last, and among equally specific patterns the
+    // most restrictive action goes last.
     ruleset.push(
-      ...Object.entries(value).map(([pattern, action]) => ({ permission: key, pattern: expand(pattern), action })),
+      ...Object.entries(value)
+        .map(([pattern, action]) => ({ permission: key, pattern: expand(pattern), action }))
+        .toSorted(
+          (a, b) => specificity(a.pattern) - specificity(b.pattern) || STRICTNESS[a.action] - STRICTNESS[b.action],
+        ),
     )
   }
   return ruleset

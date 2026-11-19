@@ -1,0 +1,13 @@
+diff --git a/packages/opencode/src/command/orient.ts b/packages/opencode/src/command/orient.ts
+index 71dac28..73623a7 100644
+--- a/packages/opencode/src/command/orient.ts
++++ b/packages/opencode/src/command/orient.ts
+@@ -34,7 +34,7 @@ export function permission(defaults: PermissionV1.Ruleset, user: PermissionV1.Ru
+   )
+ }
+ 
+-const README = /^readme(\.[a-z0-9]+)?$/i
++const README = /readme(\.[a-z0-9]+)?$/i
+ const MANIFESTS = [
+   "package.json",
+   "pyproject.toml",
